@@ -1,5 +1,7 @@
 (use gl)
 (use gl.glut)
+(use util.stream)
+(use gauche.uvector)
 
 (define (mephisto-init!)
   (gl-clear-color 0.0 0.0 0.0 0.0)
@@ -7,7 +9,6 @@
   (gl-load-identity)
   (gl-ortho -1.0 1.0 -1.0 1.0 -1.0 1.0)
 
-  (gl-clear-color 0.0 0.0 0.0 0.0)
   (gl-shade-model GL_FLAT)
 
   (gl-light GL_LIGHT0 GL_POSITION '#f32(0.0 10.0 20.0 0.0))
@@ -26,10 +27,6 @@
 ;;   (glut-keyboard-func keyboard)
   )
 
-(define (display)
-  (display-content)
-  )
-
 (define (display-content)
   (gl-clear GL_COLOR_BUFFER_BIT)
   (gl-clear GL_DEPTH_BUFFER_BIT)
@@ -45,6 +42,10 @@
 
   (gl-color 0.0 1.0 0.0)
 
+  (gl-material GL_FRONT GL_DIFFUSE (f32vector 0 1 1 1.0))
+  (gl-material GL_FRONT GL_AMBIENT
+	       (f32vector (/ 0 10) (/ 1 10) (/ 0 10) 1.0))
+
   (gl-begin GL_TRIANGLE_STRIP)
   (let loop ((n 50))
     (gl-vertex (* n 0.003) (* 1 (sin (* n 0.3))) (* 1 (cos (* n 0.3))))
@@ -54,7 +55,7 @@
     )
   (gl-end)
 
-  (glut-solid-torus 0.2 0.5 10 10)
+  (glut-solid-sphere 0.3 8 8)
   (gl-flush)
   )
 
@@ -70,6 +71,14 @@
   (case key
     ((27) (exit 0))))
 
+(define (make-display)
+  (let1 strm (make-anim-stream)
+    (lambda ()
+      ((stream-car #?=strm))
+      (set! strm (stream-cdr strm))
+      )
+    ))
+
 (define (mephisto-main args)
   (glut-init args)
   (glut-init-display-mode (logior GLUT_SINGLE GLUT_DEPTH GLUT_RGB))
@@ -79,7 +88,7 @@
   (glut-create-window "MEPHISTO")
   (mephisto-init!)
 
-  (glut-display-func display)
+  (glut-display-func (make-display))
   (glut-keyboard-func keyboard)
 
   (glut-main-loop)
@@ -87,3 +96,9 @@
 
 (define (main args)
   (mephisto-main args))
+
+(define (draw)
+  (display-content))
+
+(define (make-anim-stream)
+  (stream-cons draw (make-anim-stream)))
