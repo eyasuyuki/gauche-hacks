@@ -44,7 +44,11 @@
   (gl-scale 0.5 0.5 0.5)
   (gl-begin GL_TRIANGLE_STRIP)
   (let loop ((n 50))
-    (gl-vertex (* n 0.003) (* 1 (sin (* n 0.3))) (* 1 (cos (* n 0.3))))
+    (let ((r (* n 0.03))
+	  (theta (* n 0.3))
+	  (phi (* n 0.5)))
+      (let1 r-cos-phi (* r (cos phi))
+        (gl-vertex (* r-cos-phi (cos theta)) (* r-cos-phi (sin theta)) (* r (sin theta)))))
     (if (< n 0)
 	'done
 	(loop (- n 1)))
