@@ -37,9 +37,8 @@
 
   (gl-push-matrix)
   (gl-rotate (* m 0.2) 0 (sin (* m 0.01)) (cos (* m 0.01)))
-  (gl-scale 0.5 0.5 0.5)
   (gl-begin GL_TRIANGLE_STRIP)
-  (let loop ((n 50))
+  (let loop ((n 100))
     (let ((r (+ 5(* n 0.03)))
 	  (theta (* n 0.3))
 	  (phi (* n 0.5)))
@@ -57,14 +56,6 @@
   (gl-pop-matrix)
 
   (glut-swap-buffers)
-  )
-
-(define (reshape w h)
-  (gl-viewport 0 0 w h)
-  (gl-matrix-mode GL_PROJECTION)
-  (gl-load-identity)
-  (gl-frustum -2.0 2.0 -1.5 1.5 1.5 30.0)
-  (gl-matrix-mode GL_MODELVIEW)
   )
 
 (define (keyboard key x y)
@@ -107,7 +98,7 @@
 
   (gl-matrix-mode GL_MODELVIEW)
       (gl-load-identity)
-      (glu-look-at 0.0 0.0 10.0 0.0 0.0 0.0 0.0 1.0 0.0)
+      (glu-look-at 0.0 0.0 -20.0 0.0 0.0 0.0 0.0 1.0 0.0)
       (display-content time)
       (inc! time))))
 
