@@ -11,10 +11,6 @@
 
 (define (mephisto-init!)
   (gl-clear-color 0.0 0.0 0.0 0.0)
-  (gl-matrix-mode GL_PROJECTION)
-  (gl-load-identity)
-  (gl-ortho -1.0 1.0 -1.0 1.0 -1.0 1.0)
-
   (gl-shade-model GL_FLAT)
 
   (gl-light GL_LIGHT0 GL_POSITION '#f32(0.0 10.0 20.0 0.0))
@@ -44,11 +40,15 @@
   (gl-scale 0.5 0.5 0.5)
   (gl-begin GL_TRIANGLE_STRIP)
   (let loop ((n 50))
-    (let ((r (* n 0.03))
+    (let ((r (+ 5(* n 0.03)))
 	  (theta (* n 0.3))
 	  (phi (* n 0.5)))
       (let1 r-cos-phi (* r (cos phi))
-        (gl-vertex (* r-cos-phi (cos theta)) (* r-cos-phi (sin theta)) (* r (sin theta)))))
+	(let ((x (* r-cos-phi (cos theta)))
+	      (y (* r-cos-phi (sin theta)))
+	      (z (* r (sin theta))))
+	  (gl-normal x y z)
+	  (gl-vertex x y z))))
     (if (< n 0)
 	'done
 	(loop (- n 1)))
@@ -101,8 +101,13 @@
 (define draw
   (let1 time 0
     (lambda ()
+  (gl-matrix-mode GL_PROJECTION)
+  (gl-load-identity)
+  (glu-perspective 60 4/3 1 100)
+
+  (gl-matrix-mode GL_MODELVIEW)
       (gl-load-identity)
-      (glu-look-at 0.5 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0)
+      (glu-look-at 0.0 0.0 10.0 0.0 0.0 0.0 0.0 1.0 0.0)
       (display-content time)
       (inc! time))))
 
