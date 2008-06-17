@@ -4,6 +4,8 @@
 ;; $Id$
 
 
+(use srfi-1)
+
 (use gl)
 (use gl.glut)
 (use util.stream)
@@ -26,6 +28,13 @@
 ;   (glu-look-at 0.5 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0)
   )
 
+(define strip
+  (map (lambda (n)
+	 (list (+ 5(* n 0.03))
+	       (* n 0.2)
+	       (* n 0.7)))
+       (iota 1000)))
+
 (define (display-content)
   (gl-clear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
 
@@ -36,20 +45,23 @@
 	       (f32vector (/ 0 10) (/ 1 10) (/ 0 10) 1.0))
 
   (gl-begin GL_TRIANGLE_STRIP)
-  (let loop ((n 100))
-    (let ((r (+ 5(* n 0.03)))
-	  (theta (* n 0.2))
-	  (phi (* n 0.7)))
-      (let1 r-cos-phi (* r (cos phi))
-	(let ((x (* r-cos-phi (cos theta)))
-	      (y (* r-cos-phi (sin theta)))
-	      (z (* r (sin theta))))
-	  (gl-normal x y z)
-	  (gl-vertex x y z))))
-    (if (< n 0)
+  (let loop ((n 100)
+	     (s strip))
+    (if (null? s)
 	'done
-	(loop (- n 1)))
-    )
+	(let ((p (car s)))
+	  (let ((r (car p))
+		(theta (cadr p))
+		(phi (caddr p)))
+	    (let ((r-cos-phi (* r (cos phi))))
+	      (let ((x (* r-cos-phi (cos theta)))
+		    (y (* r-cos-phi (sin theta)))
+		    (z (* r (sin theta))))
+		(gl-normal x y z)
+		(gl-vertex x y z)
+		(if (< n 0)
+		    (set-cdr! s '())
+		    (loop (- n 1) (cdr s)))))))))
   (gl-end)
 
   (glut-swap-buffers)
