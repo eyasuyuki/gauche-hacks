@@ -8,6 +8,8 @@
 
 (use gl)
 (use gl.glut)
+(use gl.math3d)
+(use math.const)
 (use util.stream)
 (use gauche.uvector)
 
@@ -15,11 +17,15 @@
   (gl-clear-color 0.0 0.0 0.0 0.0)
   (gl-shade-model GL_FLAT)
 
-  (gl-light GL_LIGHT0 GL_POSITION '#f32(0.0 10.0 20.0 0.0))
-  (gl-light GL_LIGHT0 GL_DIFFUSE '#f32(1.0 1.0 1.0 1.0))
-  (gl-light GL_LIGHT0 GL_AMBIENT '#f32(1.0 1.0 1.0 1.0))
+  (gl-light GL_LIGHT0 GL_POSITION '#f32(20.0 0.0 0.0 0.0))
+  (gl-light GL_LIGHT0 GL_DIFFUSE '#f32(0.0 0.5 1.0 1.0))
+
+  (gl-light GL_LIGHT1 GL_POSITION '#f32(-20.0 0.0 0.0 0.0))
+  (gl-light GL_LIGHT1 GL_DIFFUSE '#f32(1.0 0.5 0.0 1.0))
+
   (gl-enable GL_LIGHTING)
   (gl-enable GL_LIGHT0)
+  (gl-enable GL_LIGHT1)
 
   (gl-enable GL_DEPTH_TEST)
   (gl-enable GL_NORMALIZE)
@@ -28,25 +34,29 @@
 ;   (glu-look-at 0.5 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0)
   )
 
-(define strip
-  (map (lambda (n)
-	 (list (+ 5(* n 0.03))
-	       (* n 0.2)
-	       (* n 0.7)))
-       (iota 1000)))
+; (define strip
+;   (map (lambda (n)
+; 	 (list (+ 5(* n 0.03))		;r
+; 	       (* n 0.9)		;theta
+; 	       (* n 0.7)))		;phi
+;        (iota 1000)))
+
+(define strip '())
 
 (define (display-content)
   (gl-clear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
 
   (gl-color 0.0 1.0 0.0)
 
-  (gl-material GL_FRONT GL_DIFFUSE (f32vector 0 1 1 1.0))
-  (gl-material GL_FRONT GL_AMBIENT
-	       (f32vector (/ 0 10) (/ 1 10) (/ 0 10) 1.0))
+  (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 0.5 1 1))
+;   (gl-material GL_FRONT GL_AMBIENT (f32vector 1 0 0 1))
 
   (gl-begin GL_TRIANGLE_STRIP)
-  (let loop ((n 100)
-	     (s strip))
+  (gl-normal 0 0 -1)
+  (gl-vertex 0 0 0)
+  (let loop ((n 400)
+	     (s strip)
+	     (prev-vec (vector4f 0 0 0)))
     (if (null? s)
 	'done
 	(let ((p (car s)))
@@ -56,12 +66,13 @@
 	    (let ((r-cos-phi (* r (cos phi))))
 	      (let ((x (* r-cos-phi (cos theta)))
 		    (y (* r-cos-phi (sin theta)))
-		    (z (* r (sin theta))))
-		(gl-normal x y z)
-		(gl-vertex x y z)
-		(if (< n 0)
-		    (set-cdr! s '())
-		    (loop (- n 1) (cdr s)))))))))
+		    (z (* r (sin phi))))
+		(let ((new-vec (vector4f x y z)))
+		  (gl-normal (vector4f-cross (vector4f-sub new-vec prev-vec) new-vec))
+		  (gl-vertex x y z)
+		  (if (< n 0)
+		      (set-cdr! s '())
+		      (loop (- n 1) (cdr s) new-vec)))))))))
   (gl-end)
 
   (glut-swap-buffers)
@@ -86,10 +97,17 @@
 
 (define passive-motion
   (let ((w (/ *window-width* 2))
-	(h (/ *window-height* 2)))
+	(h (/ *window-height* 2))
+	(alpha 1))
     (lambda (x y)
-      (set! *mouse-x* (* (/ (- x w) w) 2))
-      (set! *mouse-y* (* (/ (- y h) h) 2)))))
+      (set! *mouse-x* (/ (- x w) w))
+      (set! *mouse-y* (/ (- y h) h))
+
+      (let ((r (* (+ 1 alpha) (* 7 (+ *mouse-x* *mouse-y*))))
+	    (t (* pi *mouse-x*))
+	    (p (* pi *mouse-y*)))
+	(set! alpha (- 1 alpha))
+	(set! strip (cons (list r t p) strip))))))
 
 (define (mephisto-main args)
   (glut-init args)
@@ -134,9 +152,11 @@
       (gl-pop-matrix)
 
       (inc! time)
-      (set! ang-x (- ang-x *mouse-y*))
-      (set! ang-y (+ ang-y *mouse-x*))
-      (set! ang-z (+ ang-z 0.1)))))
+      (set! ang-x (- ang-x (/ *mouse-y* 3)))
+;       (set! ang-y (+ ang-y (/ *mouse-x* 2)))
+      (set! ang-y (+ ang-y 3))
+;       (set! ang-z (+ ang-z 0.1))
+      )))
 
 (define make-anim-stream
   (stream-cons draw make-anim-stream))
