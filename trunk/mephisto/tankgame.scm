@@ -49,9 +49,9 @@
 
 (define (gen-enemies)
   (map (lambda (n)
-	 (let ((x (* (random-real) 15))
+	 (let ((x (* (random-real) 100))
 	       (y 0)
-	       (z (* (random-real) 15)))
+	       (z (* (random-real) 100)))
 	   (list n x y z)))
        (iota 15)))
 
@@ -79,17 +79,19 @@
 
 (define *position* (point4f 3 0 3))
 (define *rotation* (vector4f-normalize (vector4f 1 0 1)))
-(define *up-vec* (vector4f 0 1 0))
-(define *rot-angle* (make-quatf (vector4f 0 1 0) (/ pi 10)))
-(define *neg-rot-angle* (make-quatf (vector4f 0 -1 0) (/ pi 10)))
+(define-constant *up-vec* (vector4f 0 1 0))
+(define-constant *rot-angle* (make-quatf (vector4f 0 1 0) (/ pi 30)))
+(define-constant *neg-rot-angle* (make-quatf (vector4f 0 -1 0) (/ pi 30)))
+(define-constant *rot-matrix* (quatf->matrix4f *rot-angle*))
+(define-constant *neg-rot-matrix* (quatf->matrix4f *neg-rot-angle*))
 
 (define (keyboard key x y)
   (case key
     ((27) (exit 0))
     ((97)				; a
-     (set! *rotation* (* (quatf->matrix4f *rot-angle*) *rotation*)))
+     (set! *rotation* (* *rot-matrix* *rotation*)))
     ((100)				; d
-     (set! *rotation* (* (quatf->matrix4f *neg-rot-angle*) *rotation*)))
+     (set! *rotation* (* *neg-rot-matrix* *rotation*)))
     ((115)				; s
      (set! *position* (point4f-sub *position* *rotation*)))
     ((119)				; w
