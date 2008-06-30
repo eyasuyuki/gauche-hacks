@@ -14,6 +14,8 @@
 (use util.stream)
 (use gauche.uvector)
 
+(use gauche.time)
+
 (define (mephisto-init!)
 ;;   (gl-clear-color 0.0 0.0 0.0 0.0)
   (gl-shade-model GL_FLAT)
@@ -45,6 +47,7 @@
   (gl-translate 0 0 -15)
   (glut-solid-cube 1)
   (gl-pop-matrix)
+  (draw-cannonball)
   )
 
 (define (gen-enemies)
@@ -85,9 +88,43 @@
 (define-constant *rot-matrix* (quatf->matrix4f *rot-angle*))
 (define-constant *neg-rot-matrix* (quatf->matrix4f *neg-rot-angle*))
 
+(define (vector4f-scale v s)
+  (f32vector->vector4f (f32vector-mul (vector4f->f32vector v) s)))
+
+(define (square x) (* x x))
+
+(define (draw-cannonball)
+  (when *cannonball-param*
+    (if (< *cannonball-param* 1)
+	(let ((pos (point4f-add *cannonball-initpos*
+				(vector4f-scale *cannonball-rotation*
+					       (* 10 *cannonball-param*)))))
+	  (point4f-set! pos 1
+			(+ (ref pos 1)
+			   (* 2 (+ 1
+				   (* -4 (square (- *cannonball-param* 0.5)))))))
+	  (gl-push-matrix)
+	  (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
+	  (glut-solid-cube 0.2)
+	  (gl-pop-matrix)
+	  (set! *cannonball-param* (+ *cannonball-param* 0.03))
+	  )
+	(set! *cannonball-param* #f)
+    )))
+
+(define *cannonball-param* #f)
+(define *cannonball-initpos* #f)
+(define *cannonball-rotation* #f)
+
+(define (fire!)
+  (set! *cannonball-param* 0)
+  (set! *cannonball-initpos* (point4f-add *position* *rotation*))
+  (set! *cannonball-rotation* *rotation*))
+
 (define (keyboard key x y)
   (case key
     ((27) (exit 0))
+    ((32) (fire!))
     ((97)				; a
      (set! *rotation* (* *rot-matrix* *rotation*)))
     ((100)				; d
@@ -125,7 +162,7 @@
 
   (glut-init-window-size *window-width* *window-height*)
   (glut-init-window-position 0 0)
-  (glut-create-window "MEPHISTO")
+  (glut-create-window "TANK!")
   (mephisto-init!)
 
   (glut-passive-motion-func passive-motion)
@@ -153,12 +190,22 @@
 	       0.0 1.0 0.0)
   )
 
+(define *time-counter* (make <real-time-counter>))
+
 (define draw
     (lambda ()
       (clear-screen)
       (set-view)
       (display-content)
       (glut-swap-buffers)
+
+      (time-counter-stop! *time-counter*)
+      ;; wait for 0.04 seconds
+      (let ((time (- 0.04 (time-counter-value *time-counter*))))
+	(when (> time 0)
+	      (sys-nanosleep (* time 1000 1000 1000)))
+	(time-counter-reset! *time-counter*)
+	(time-counter-start! *time-counter*))
       ))
 
 (define make-anim-stream
