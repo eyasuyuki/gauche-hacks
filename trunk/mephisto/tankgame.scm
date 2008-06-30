@@ -41,12 +41,6 @@
     ))
 
 (define (draw-gun)
-  (gl-push-matrix)
-  (gl-scale 0.2 0.2 1)
-  (gl-rotate 15 0 1 0)
-  (gl-translate 0 0 -15)
-  (glut-solid-cube 1)
-  (gl-pop-matrix)
   (draw-cannonball)
   )
 
@@ -56,22 +50,23 @@
 	       (y 0)
 	       (z (* (random-real) 100)))
 	   (list n x y z)))
-       (iota 15)))
+       (iota 10)))
 
 (define *enemies* (gen-enemies))
 
 (define (draw-enemy)
   (for-each (lambda (e)
-	      (gl-push-matrix)
-	      (let ((x (cadr e))
-		    (y (caddr e))
-		    (z (cadddr e)))
-		(gl-translate x (+ y 0.5) z))
-	      (gl-scale 0.5 1 0.5)
-	      (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
-	      (gl-color 1 1 1 1)
-	      (glut-solid-cube 4)
-	      (gl-pop-matrix))
+	      (unless (null? e)
+		(gl-push-matrix)
+		(let ((x (cadr e))
+		      (y (caddr e))
+		      (z (cadddr e)))
+		  (gl-translate x (+ y 0.5) z))
+		(gl-scale 0.5 1 0.5)
+		(gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
+		(gl-color 1 1 1 1)
+		(glut-solid-cube 4)
+		(gl-pop-matrix)))
 	    *enemies*))
 
 (define (display-content)
@@ -83,8 +78,8 @@
 (define *position* (point4f 3 0 3))
 (define *rotation* (vector4f-normalize (vector4f 1 0 1)))
 (define-constant *up-vec* (vector4f 0 1 0))
-(define-constant *rot-angle* (make-quatf (vector4f 0 1 0) (/ pi 30)))
-(define-constant *neg-rot-angle* (make-quatf (vector4f 0 -1 0) (/ pi 30)))
+(define-constant *rot-angle* (make-quatf (vector4f 0 1 0) (/ pi 50)))
+(define-constant *neg-rot-angle* (make-quatf (vector4f 0 -1 0) (/ pi 50)))
 (define-constant *rot-matrix* (quatf->matrix4f *rot-angle*))
 (define-constant *neg-rot-matrix* (quatf->matrix4f *neg-rot-angle*))
 
@@ -93,24 +88,47 @@
 
 (define (square x) (* x x))
 
+(define (collide? enemy cannonball-pos)
+  (let ((ex (cadr enemy))
+	(ez (cadddr enemy))
+	(cx (ref cannonball-pos 0))
+	(cz (ref cannonball-pos 2)))
+    (< (+ (square (- ex cx)) (square (- ez cz))) 10)
+    ))
+
+(define (check-collision cannonball-pos)
+  (let loop ((enems *enemies*))
+    (if (null? enems)
+	#f				; no collision
+	(let1 e (car enems)
+	  (if (and (not (null? e)) (collide? e cannonball-pos))
+	      (begin
+		(set-car! enems '())
+		#t)
+	      (loop (cdr enems)))))))
+
 (define (draw-cannonball)
   (when *cannonball-param*
     (if (< *cannonball-param* 1)
 	(let ((pos (point4f-add *cannonball-initpos*
 				(vector4f-scale *cannonball-rotation*
-					       (* 10 *cannonball-param*)))))
+						(* 20 *cannonball-param*)))))
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
 			   (* 2 (+ 1
 				   (* -4 (square (- *cannonball-param* 0.5)))))))
-	  (gl-push-matrix)
-	  (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
-	  (glut-solid-cube 0.2)
-	  (gl-pop-matrix)
-	  (set! *cannonball-param* (+ *cannonball-param* 0.03))
-	  )
+	  (if (check-collision pos)
+	      #f
+	      (begin
+		(gl-push-matrix)
+		(gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
+		(glut-solid-cube 0.2)
+		(gl-pop-matrix)
+		(set! *cannonball-param* (+ *cannonball-param* 0.06))
+		)
+	      ))
 	(set! *cannonball-param* #f)
-    )))
+	)))
 
 (define *cannonball-param* #f)
 (define *cannonball-initpos* #f)
@@ -130,7 +148,7 @@
     ((100)				; d
      (set! *rotation* (* *neg-rot-matrix* *rotation*)))
     ((115)				; s
-     (set! *position* (point4f-sub *position* *rotation*)))
+     (set! *position* (point4f-sub *position* (vector4f-scale *rotation* 0.5))))
     ((119)				; w
      (point4f-add! *position* *rotation*))))
 
