@@ -35,15 +35,6 @@
   (gl-clear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
   )
 
-(define (draw-cross-hair)
-  (let ((x *mouse-x*)
-	(y *mouse-y*))
-    ))
-
-(define (draw-gun)
-  (draw-cannonball)
-  )
-
 (define (gen-enemies)
   (map (lambda (n)
 	 (let ((x (* (random-real) 100))
@@ -67,13 +58,8 @@
 		(gl-color 1 1 1 1)
 		(glut-solid-cube 4)
 		(gl-pop-matrix)))
-	    *enemies*))
-
-(define (display-content)
-  (draw-cross-hair)
-  (draw-gun)
-  (draw-enemy)
-  )
+	    *enemies*)
+  #t)
 
 (define *position* (point4f 3 0 3))
 (define *rotation* (vector4f-normalize (vector4f 1 0 1)))
@@ -128,7 +114,8 @@
 		)
 	      ))
 	(set! *cannonball-param* #f)
-	)))
+	))
+  #t)
 
 (define *cannonball-param* #f)
 (define *cannonball-initpos* #f)
@@ -151,14 +138,6 @@
      (set! *position* (point4f-sub *position* (vector4f-scale *rotation* 0.5))))
     ((119)				; w
      (point4f-add! *position* *rotation*))))
-
-(define (make-display)
-  (let1 strm make-anim-stream
-    (lambda ()
-      ((stream-car strm))
-      (set! strm (stream-cdr strm))
-      )
-    ))
 
 (define *mouse-x* 0)
 (define *mouse-y* 0)
@@ -184,8 +163,8 @@
   (mephisto-init!)
 
   (glut-passive-motion-func passive-motion)
-  (glut-display-func (make-display))
-  (glut-idle-func (make-display))
+  (glut-display-func draw)
+  (glut-idle-func draw)
   (glut-keyboard-func keyboard)
 
   (glut-main-loop)
@@ -206,15 +185,23 @@
 	       (+ (ref *position* 1) (ref *rotation* 1))
 	       (+ (ref *position* 2) (ref *rotation* 2))
 	       0.0 1.0 0.0)
-  )
+  #t)
 
 (define *time-counter* (make <real-time-counter>))
+
+(define *elements* (list set-view draw-cannonball draw-enemy))
 
 (define draw
     (lambda ()
       (clear-screen)
-      (set-view)
-      (display-content)
+
+      (let loop ((elems *elements*))
+	(unless (null? elems)
+	  (let1 e (car elems)
+	    (when e
+	      (unless (e) (set-car! elems #f)))
+	    (loop (cdr elems)))))
+
       (glut-swap-buffers)
 
       (time-counter-stop! *time-counter*)
@@ -225,6 +212,3 @@
 	(time-counter-reset! *time-counter*)
 	(time-counter-start! *time-counter*))
       ))
-
-(define make-anim-stream
-  (stream-cons draw make-anim-stream))
