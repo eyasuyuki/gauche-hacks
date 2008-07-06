@@ -45,19 +45,21 @@
 
 (define *enemies* (gen-enemies))
 
-(define (draw-enemy)
+(define (update-enemy render-element-list)
   (for-each (lambda (e)
-	      (unless (null? e)
-		(gl-push-matrix)
-		(let ((x (cadr e))
-		      (y (caddr e))
-		      (z (cadddr e)))
-		  (gl-translate x (+ y 0.5) z))
-		(gl-scale 0.5 1 0.5)
-		(gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
-		(gl-color 1 1 1 1)
-		(glut-solid-cube 4)
-		(gl-pop-matrix)))
+	      (append! render-element-list
+		       (list (lambda ()
+			       (unless (null? e)
+				 (gl-push-matrix)
+				 (let ((x (cadr e))
+				       (y (caddr e))
+				       (z (cadddr e)))
+				   (gl-translate x (+ y 0.5) z))
+				 (gl-scale 0.5 1 0.5)
+				 (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
+				 (gl-color 1 1 1 1)
+				 (glut-solid-cube 4)
+				 (gl-pop-matrix))))))
 	    *enemies*)
   #t)
 
@@ -93,7 +95,7 @@
 		#t)
 	      (loop (cdr enems)))))))
 
-(define (draw-cannonball)
+(define (update-cannonball render-element-list)
   (when *cannonball-param*
     (if (< *cannonball-param* 1)
 	(let ((pos (point4f-add *cannonball-initpos*
@@ -106,12 +108,16 @@
 	  (if (check-collision pos)
 	      #f
 	      (begin
-		(gl-push-matrix)
-		(gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
-		(glut-solid-cube 0.2)
-		(gl-pop-matrix)
-		(set! *cannonball-param* (+ *cannonball-param* 0.06))
-		)
+		(append!
+		 render-element-list
+		 (list (lambda ()
+			 (gl-push-matrix)
+			 (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
+			 (glut-solid-cube 0.2)
+			 (gl-pop-matrix)
+			 ))
+			 )
+		(set! *cannonball-param* (+ *cannonball-param* 0.06)))
 	      ))
 	(set! *cannonball-param* #f)
 	))
@@ -163,8 +169,8 @@
   (mephisto-init!)
 
   (glut-passive-motion-func passive-motion)
-  (glut-display-func draw)
-  (glut-idle-func draw)
+  (glut-display-func render)
+  (glut-idle-func render)
   (glut-keyboard-func keyboard)
 
   (glut-main-loop)
@@ -173,25 +179,37 @@
 (define (main args)
   (mephisto-main args))
 
-(define (set-view)
-  (gl-matrix-mode GL_PROJECTION)
-  (gl-load-identity)
-  (glu-perspective 60 4/3 1 100)
+(define (set-view render-element-list)
+  (append! render-element-list
+	   (list (lambda ()
+		   (gl-matrix-mode GL_PROJECTION)
+		   (gl-load-identity)
+		   (glu-perspective 60 4/3 1 100)
 
-  (gl-matrix-mode GL_MODELVIEW)
-  (gl-load-identity)
-  (glu-look-at (ref *position* 0) (ref *position* 1) (ref *position* 2)
-	       (+ (ref *position* 0) (ref *rotation* 0))
-	       (+ (ref *position* 1) (ref *rotation* 1))
-	       (+ (ref *position* 2) (ref *rotation* 2))
-	       0.0 1.0 0.0)
+		   (gl-matrix-mode GL_MODELVIEW)
+		   (gl-load-identity)
+		   (glu-look-at (ref *position* 0) (ref *position* 1) (ref *position* 2)
+				(+ (ref *position* 0) (ref *rotation* 0))
+				(+ (ref *position* 1) (ref *rotation* 1))
+				(+ (ref *position* 2) (ref *rotation* 2))
+				0.0 1.0 0.0))))
   #t)
 
 (define *time-counter* (make <real-time-counter>))
 
-(define *elements* (list set-view draw-cannonball draw-enemy))
+(define self (make-hash-table))
+(hash-table-put! self 'update set-view)
 
-(define draw
+(define cannonball (make-hash-table))
+(hash-table-put! cannonball 'update update-cannonball)
+
+(define enemy (make-hash-table))
+(hash-table-put! enemy 'update update-enemy)
+
+(define *elements* (list self cannonball enemy))
+(define *render-elements* '(a))
+
+(define render
     (lambda ()
       (clear-screen)
 
@@ -199,8 +217,12 @@
 	(unless (null? elems)
 	  (let1 e (car elems)
 	    (when e
-	      (unless (e) (set-car! elems #f)))
+	      (unless ((hash-table-get e 'update) *render-elements*) (set-car! elems #f)))
 	    (loop (cdr elems)))))
+;;       #?=(length *render-elements*)
+      (for-each (cut <>) (cdr *render-elements*))
+      (set-cdr! *render-elements* '())
+;;       #?=(length *render-elements*)
 
       (glut-swap-buffers)
 
