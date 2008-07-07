@@ -95,8 +95,10 @@
 		#t)
 	      (loop (cdr enems)))))))
 
-(define (update-cannonball render-element-list)
-  (when *cannonball-param*
+(define (update-cannonball self render-element-list)
+  (let ((*cannonball-param* (hash-table-get self 'param))
+	(*cannonball-initpos* (hash-table-get self 'initpos))
+	(*cannonball-rotation* (hash-table-get self 'rotation)))
     (if (< *cannonball-param* 1)
 	(let ((pos (point4f-add *cannonball-initpos*
 				(vector4f-scale *cannonball-rotation*
@@ -116,26 +118,44 @@
 			 (glut-solid-cube 0.2)
 			 (gl-pop-matrix)
 			 ))
-			 )
-		(set! *cannonball-param* (+ *cannonball-param* 0.06)))
+		 )
+		(hash-table-put! self 'param (+ *cannonball-param* 0.06))
+		#t)
 	      ))
-	(set! *cannonball-param* #f)
-	))
-  #t)
+	#f
+	)))
 
-(define *cannonball-param* #f)
-(define *cannonball-initpos* #f)
-(define *cannonball-rotation* #f)
+; (define *cannonball-param* #f)
+; (define *cannonball-initpos* #f)
+; (define *cannonball-rotation* #f)
+
+(define (cannonball-create pos rot)
+  (let ((h (make-hash-table)))
+    (hash-table-put! h 'param 0)
+    (hash-table-put! h 'initpos pos)
+    (hash-table-put! h 'rotation rot)
+    (hash-table-put! h 'update (lambda (elems)
+				 (update-cannonball h elems)
+				 ))
+
+    h))
 
 (define (fire!)
-  (set! *cannonball-param* 0)
-  (set! *cannonball-initpos* (point4f-add *position* *rotation*))
-  (set! *cannonball-rotation* *rotation*))
+;   (set! *cannonball-param* 0)
+;   (set! *cannonball-initpos* (point4f-add *position* *rotation*))
+;   (set! *cannonball-rotation* *rotation*)
+
+  (append! *elements*
+	   (list (cannonball-create
+		  (point4f-add *position* *rotation*) *rotation*)))
+  )
 
 (define (keyboard key x y)
   (case key
     ((27) (exit 0))
     ((32) (fire!))
+    ((99)				; c
+     (compact! *elements*))
     ((97)				; a
      (set! *rotation* (* *rot-matrix* *rotation*)))
     ((100)				; d
@@ -200,26 +220,39 @@
 (define self (make-hash-table))
 (hash-table-put! self 'update set-view)
 
-(define cannonball (make-hash-table))
-(hash-table-put! cannonball 'update update-cannonball)
+; (define cannonball (make-hash-table))
+; (hash-table-put! cannonball 'update update-cannonball)
 
 (define enemy (make-hash-table))
 (hash-table-put! enemy 'update update-enemy)
 
-(define *elements* (list self cannonball enemy))
+(define *elements* (list 'elements self enemy))
 (define *render-elements* '(a))
+
+(define (compact! elems)
+;   (print elems)
+  (let loop ((elems elems))
+    (unless (null? (cdr elems))
+	    (if (cadr elems)
+		(loop (cdr elems))
+		(begin (set-cdr! elems (cddr elems))
+		       (loop elems)
+		       ))))
+;   (print elems)
+  )
 
 (define render
     (lambda ()
       (clear-screen)
 
-      (let loop ((elems *elements*))
+      (let loop ((elems (cdr *elements*)))
 	(unless (null? elems)
 	  (let1 e (car elems)
 	    (when e
-	      (unless ((hash-table-get e 'update) *render-elements*) (set-car! elems #f)))
+	      (unless ((hash-table-get e 'update) *render-elements*)
+		      (set-car! elems #f)))
 	    (loop (cdr elems)))))
-;;       #?=(length *render-elements*)
+;       (print (list (length *render-elements*) (length *elements*)))
       (for-each (cut <>) (cdr *render-elements*))
       (set-cdr! *render-elements* '())
 ;;       #?=(length *render-elements*)
