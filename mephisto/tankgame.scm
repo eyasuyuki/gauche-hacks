@@ -227,7 +227,7 @@
 (hash-table-put! enemy 'update update-enemy)
 
 (define *elements* (list 'elements self enemy))
-(define *render-elements* '(a))
+(define *render-elements* (list 'a))
 
 (define (compact! elems)
 ;   (print elems)
@@ -254,7 +254,8 @@
 	    (loop (cdr elems)))))
 ;       (print (list (length *render-elements*) (length *elements*)))
       (for-each (cut <>) (cdr *render-elements*))
-      (set-cdr! *render-elements* '())
+      (set! *render-elements* (list 'a))
+;;       (set-cdr! *render-elements* '())
 ;;       #?=(length *render-elements*)
 
       (glut-swap-buffers)
