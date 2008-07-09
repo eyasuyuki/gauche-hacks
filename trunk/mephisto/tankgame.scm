@@ -54,8 +54,9 @@
 				 (let ((x (cadr e))
 				       (y (caddr e))
 				       (z (cadddr e)))
-				   (gl-translate x (+ y 0.5) z))
-				 (gl-scale 0.5 1 0.5)
+				   (gl-translate x y z))
+				 (gl-scale 0.3 0.2 0.5)
+				 (gl-translate 0 0.5 0)
 				 (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
 				 (gl-color 1 1 1 1)
 				 (glut-solid-cube 4)
@@ -115,7 +116,7 @@
 		 (list (lambda ()
 			 (gl-push-matrix)
 			 (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
-			 (glut-solid-cube 0.2)
+			 (glut-solid-cube 0.1)
 			 (gl-pop-matrix)
 			 ))
 		 )
@@ -145,12 +146,17 @@
 ;   (set! *cannonball-initpos* (point4f-add *position* *rotation*))
 ;   (set! *cannonball-rotation* *rotation*)
 
-  (append! *elements*
-	   (list (cannonball-create
-		  (point4f-add *position* *rotation*) *rotation*)))
+  (let1 quat (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 6)))
+    (append! *elements*
+	     (list (cannonball-create
+		    (point4f-add *position* (vector4f-scale *rotation* (random-real)))
+		    (quatf-transform quat *rotation*)))))
   )
 
+(define *key-active* #f)
+
 (define (keyboard key x y)
+  (set! *key-active* #f)
   (case key
     ((27) (exit 0))
     ((32) (fire!))
@@ -259,6 +265,7 @@
 ;;       #?=(length *render-elements*)
 
       (glut-swap-buffers)
+      (set! *key-active* #t)
 
       (time-counter-stop! *time-counter*)
       ;; wait for 0.04 seconds
