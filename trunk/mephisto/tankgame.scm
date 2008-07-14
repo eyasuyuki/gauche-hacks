@@ -236,7 +236,8 @@
 (define (main args)
   (mephisto-main args))
 
-(define (set-view render-element-list)
+(define (update-self render-element-list)
+  (point4f-add! *position* *rotation*)
   (append! render-element-list
 	   (list (lambda ()
 		   (gl-matrix-mode GL_PROJECTION)
@@ -255,7 +256,7 @@
 (define *time-counter* (make <real-time-counter>))
 
 (define self (make-hash-table))
-(hash-table-put! self 'update set-view)
+(hash-table-put! self 'update update-self)
 
 ; (define cannonball (make-hash-table))
 ; (hash-table-put! cannonball 'update update-cannonball)
