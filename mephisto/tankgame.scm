@@ -19,7 +19,7 @@
 (define (mephisto-init!)
   (gl-shade-model GL_FLAT)
 
-  (gl-light GL_LIGHT0 GL_POSITION '#f32(-100.0 0.0 0.0 0.0))
+  (gl-light GL_LIGHT0 GL_POSITION '#f32(-100.0 100.0 0.0 0.0))
   (gl-light GL_LIGHT0 GL_DIFFUSE '#f32(1.0 1.0 1.0 1.0))
   (gl-light GL_LIGHT0 GL_AMBIENT '#f32(0.3 0.3 0.3 1.0))
 
@@ -253,10 +253,48 @@
 				0.0 1.0 0.0))))
   #t)
 
+(define (update-ground render-element-list)
+  (append! render-element-list
+	   (list (lambda ()
+		   (let loop-x ((x 0))
+		     (if (> x 100)
+			 #f
+			 (begin
+			   (let loop-z ((z 0))
+			     (if (> z 100)
+				 #f
+				 (begin
+				   (gl-material GL_FRONT GL_DIFFUSE
+						(if (odd? (+ x z))
+						    (f32vector 0 1 0 1)
+						    (f32vector 0 0.5 0 1)))
+				   (gl-begin GL_POLYGON)
+				   (gl-normal 0 1 0)
+				   (gl-vertex x -1 z)
+				   (gl-normal 0 1 0)
+				   (gl-vertex (+ x 1) -1 z)
+				   (gl-normal 0 1 0)
+				   (gl-vertex (+ x 1) -1 (+ z 1))
+				   (gl-normal 0 1 0)
+				   (gl-vertex x -1 (+ z 1))
+				   (gl-end)
+
+;; 				   (gl-push-matrix)
+;; 				   (gl-translate x -1 z)
+;; 				   (glut-solid-cube 1)
+;; 				   (gl-pop-matrix)
+				   (loop-z (+ z 1)))))
+			   (loop-x (+ x 1)))
+			 )))
+		 )))
+
 (define *time-counter* (make <real-time-counter>))
 
 (define self (make-hash-table))
 (hash-table-put! self 'update update-self)
+
+(define ground (make-hash-table))
+(hash-table-put! ground 'update update-ground)
 
 ; (define cannonball (make-hash-table))
 ; (hash-table-put! cannonball 'update update-cannonball)
@@ -264,7 +302,7 @@
 (define enemy (make-hash-table))
 (hash-table-put! enemy 'update update-enemy)
 
-(define *elements* (list 'elements self enemy))
+(define *elements* (list 'elements ground self enemy))
 (define *render-elements* (list 'a))
 
 (define (compact! elems)
