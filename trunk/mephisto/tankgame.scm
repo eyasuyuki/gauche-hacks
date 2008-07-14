@@ -17,7 +17,6 @@
 (use gauche.time)
 
 (define (mephisto-init!)
-;;   (gl-clear-color 0.0 0.0 0.0 0.0)
   (gl-shade-model GL_FLAT)
 
   (gl-light GL_LIGHT0 GL_POSITION '#f32(-100.0 0.0 0.0 0.0))
@@ -56,9 +55,11 @@
 				       (z (cadddr e)))
 				   (gl-translate x y z))
 				 (gl-scale 0.3 0.2 0.5)
+;; 				 (gl-rotate 90 0 1 0)
 				 (gl-translate 0 0.5 0)
 				 (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
 				 (gl-color 1 1 1 1)
+;; 				 (glut-solid-teapot 4)
 				 (glut-solid-cube 4)
 				 (gl-pop-matrix))))))
 	    *enemies*)
@@ -141,12 +142,15 @@
 
     h))
 
+(define (get-mouse-angle)
+  (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 6))))
+
 (define (fire!)
 ;   (set! *cannonball-param* 0)
 ;   (set! *cannonball-initpos* (point4f-add *position* *rotation*))
 ;   (set! *cannonball-rotation* *rotation*)
 
-  (let1 quat (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 6)))
+  (let1 quat (get-mouse-angle)
     (append! *elements*
 	     (list (cannonball-create
 		    (point4f-add *position* (vector4f-scale *rotation* (random-real)))
@@ -154,6 +158,7 @@
   )
 
 (define *key-active* #f)
+(define *mouse-active* #f)
 
 (define (keyboard key x y)
   (set! *key-active* #f)
@@ -162,13 +167,29 @@
     ((32) (fire!))
     ((99)				; c
      (compact! *elements*))
-    ((97)				; a
-     (set! *rotation* (* *rot-matrix* *rotation*)))
-    ((100)				; d
-     (set! *rotation* (* *neg-rot-matrix* *rotation*)))
+;;     ((97)				; a
+;;      (set! *rotation* (* *rot-matrix* *rotation*)))
+;;     ((100)				; d
+;;      (set! *rotation* (* *neg-rot-matrix* *rotation*)))
     ((115)				; s
      (set! *position* (point4f-sub *position* (vector4f-scale *rotation* 0.5))))
     ((119)				; w
+     (point4f-add! *position* *rotation*))))
+
+(define (special-keyboard key x y)
+;;   #?=GLUT_KEY_LEFT
+;;   #?=GLUT_KEY_RIGHT
+;;   #?=GLUT_KEY_UP
+;;   #?=GLUT_KEY_DOWN
+
+  (case key
+    ((100 GLUT_KEY_LEFT)
+     (set! *rotation* (* *rot-matrix* *rotation*)))
+    ((102 GLUT_KEY_RIGHT)
+     (set! *rotation* (* *neg-rot-matrix* *rotation*)))
+    ((103 GLUT_KEY_DOWN)
+     (set! *position* (point4f-sub *position* (vector4f-scale *rotation* 0.5))))
+    ((101 GLUT_KEY_UP)
      (point4f-add! *position* *rotation*))))
 
 (define *mouse-x* 0)
@@ -177,13 +198,21 @@
 (define *window-height* 480)
 
 (define passive-motion
-  (let ((w (/ *window-width* 2))
-	(h (/ *window-height* 2))
+  (let ((w (/ *window-width* 2.0))
+	(h (/ *window-height* 2.0))
 	(alpha 1))
     (lambda (x y)
-      (set! *mouse-x* (/ (- x w) w))
-      (set! *mouse-y* (/ (- y h) h))
-      )))
+      (when *mouse-active*
+	(set! *mouse-active* #f)
+	(set! *mouse-x* (/ (- x w) w))
+	(set! *mouse-y* (/ (- y h) h))
+
+	(set! *rotation* (quatf-transform (get-mouse-angle) *rotation*))
+	(append! *render-elements*
+		 (list (lambda ()
+;; 			 (glut-warp-pointer (/ *window-width* 2) (/ *window-height* 2))
+			 #f)))
+	))))
 
 (define (mephisto-main args)
   (glut-init args)
@@ -194,10 +223,12 @@
   (glut-create-window "TANK!")
   (mephisto-init!)
 
-  (glut-passive-motion-func passive-motion)
+;;   (glut-motion-func passive-motion)
+;;   (glut-passive-motion-func passive-motion)
   (glut-display-func render)
   (glut-idle-func render)
   (glut-keyboard-func keyboard)
+  (glut-special-func special-keyboard)
 
   (glut-main-loop)
   0)
@@ -258,14 +289,12 @@
 	      (unless ((hash-table-get e 'update) *render-elements*)
 		      (set-car! elems #f)))
 	    (loop (cdr elems)))))
-;       (print (list (length *render-elements*) (length *elements*)))
       (for-each (cut <>) (cdr *render-elements*))
       (set! *render-elements* (list 'a))
-;;       (set-cdr! *render-elements* '())
-;;       #?=(length *render-elements*)
 
       (glut-swap-buffers)
       (set! *key-active* #t)
+      (set! *mouse-active* #t)
 
       (time-counter-stop! *time-counter*)
       ;; wait for 0.04 seconds
