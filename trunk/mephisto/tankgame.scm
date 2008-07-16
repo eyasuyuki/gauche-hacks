@@ -104,7 +104,7 @@
     (if (< *cannonball-param* 1)
 	(let ((pos (point4f-add *cannonball-initpos*
 				(vector4f-scale *cannonball-rotation*
-						(* 20 *cannonball-param*)))))
+						(* 50 *cannonball-param*)))))
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
 			   (* 2 (+ 1
@@ -143,7 +143,7 @@
     h))
 
 (define (get-mouse-angle)
-  (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 6))))
+  (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 12))))
 
 (define (fire!)
 ;   (set! *cannonball-param* 0)
@@ -159,6 +159,17 @@
 
 (define *key-active* #f)
 (define *mouse-active* #f)
+
+(define *velocity* 0)
+(define *left-button* #f)
+(define *right-button* #f)
+
+(define (mouse-func btn stat x y)
+  (cond ((eq? btn GLUT_LEFT_BUTTON)
+	 (set! *left-button* (eq? stat GLUT_DOWN)))
+	((eq? btn GLUT_RIGHT_BUTTON)
+	 (set! *right-button* (eq? stat GLUT_DOWN)))
+	 ))
 
 (define (keyboard key x y)
   (set! *key-active* #f)
@@ -176,6 +187,11 @@
     ((119)				; w
      (point4f-add! *position* *rotation*))))
 
+(define (turn-left!)
+  (set! *rotation* (* *rot-matrix* *rotation*)))
+(define (turn-right!)
+  (set! *rotation* (* *neg-rot-matrix* *rotation*)))
+
 (define (special-keyboard key x y)
 ;;   #?=GLUT_KEY_LEFT
 ;;   #?=GLUT_KEY_RIGHT
@@ -184,9 +200,9 @@
 
   (case key
     ((100 GLUT_KEY_LEFT)
-     (set! *rotation* (* *rot-matrix* *rotation*)))
+     (turn-left!))
     ((102 GLUT_KEY_RIGHT)
-     (set! *rotation* (* *neg-rot-matrix* *rotation*)))
+     (turn-right!))
     ((103 GLUT_KEY_DOWN)
      (set! *position* (point4f-sub *position* (vector4f-scale *rotation* 0.5))))
     ((101 GLUT_KEY_UP)
@@ -206,12 +222,6 @@
 	(set! *mouse-active* #f)
 	(set! *mouse-x* (/ (- x w) w))
 	(set! *mouse-y* (/ (- y h) h))
-
-	(set! *rotation* (quatf-transform (get-mouse-angle) *rotation*))
-	(append! *render-elements*
-		 (list (lambda ()
-;; 			 (glut-warp-pointer (/ *window-width* 2) (/ *window-height* 2))
-			 #f)))
 	))))
 
 (define (mephisto-main args)
@@ -223,13 +233,13 @@
   (glut-create-window "TANK!")
   (mephisto-init!)
 
-;;   (glut-motion-func passive-motion)
-;;   (glut-passive-motion-func passive-motion)
+  (glut-motion-func passive-motion)
+  (glut-passive-motion-func passive-motion)
   (glut-display-func render)
   (glut-idle-func render)
   (glut-keyboard-func keyboard)
   (glut-special-func special-keyboard)
-
+  (glut-mouse-func mouse-func)
   (glut-main-loop)
   0)
 
@@ -237,7 +247,15 @@
   (mephisto-main args))
 
 (define (update-self render-element-list)
-  (point4f-add! *position* *rotation*)
+  (when *left-button* (fire!))
+  (set! *velocity* ((if *right-button* - +) *velocity* 0.01))
+  (if (> *velocity* 0.5)
+      (set! *velocity* 1)
+      (if (< *velocity* 0)
+	  (set! *velocity* 0)))
+  (set! *rotation* (quatf-transform (get-mouse-angle) *rotation*))
+
+  (point4f-add! *position* (vector4f-scale *rotation* *velocity*))
   (append! render-element-list
 	   (list (lambda ()
 		   (gl-matrix-mode GL_PROJECTION)
@@ -277,11 +295,6 @@
 				   (gl-vertex (+ x 10) 0 (+ z 10))
 				   (gl-vertex x 0 (+ z 10))
 				   (gl-end)
-
-;; 				   (gl-push-matrix)
-;; 				   (gl-translate x -1 z)
-;; 				   (glut-solid-cube 1)
-;; 				   (gl-pop-matrix)
 				   (loop-z (+ z 10)))))
 			   (loop-x (+ x 10)))
 			 )))
