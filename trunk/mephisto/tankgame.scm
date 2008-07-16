@@ -58,7 +58,6 @@
 ;; 				 (gl-rotate 90 0 1 0)
 				 (gl-translate 0 0.5 0)
 				 (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
-				 (gl-color 1 1 1 1)
 ;; 				 (glut-solid-teapot 4)
 				 (glut-solid-cube 4)
 				 (gl-pop-matrix))))))
@@ -98,63 +97,78 @@
 	      (loop (cdr enems)))))))
 
 (define (update-cannonball self render-element-list)
-  (let ((*cannonball-param* (hash-table-get self 'param))
-	(*cannonball-initpos* (hash-table-get self 'initpos))
-	(*cannonball-rotation* (hash-table-get self 'rotation)))
-    (if (< *cannonball-param* 1)
-	(let ((pos (point4f-add *cannonball-initpos*
-				(vector4f-scale *cannonball-rotation*
-						(* 50 *cannonball-param*)))))
+  (let ((param (hash-table-get self 'param))
+	(initpos (hash-table-get self 'initpos))
+	(rotation (hash-table-get self 'rotation))
+	(color (hash-table-get self 'color))
+	(size (hash-table-get self 'size))
+	(height (hash-table-get self 'height)))
+    (if (< param 1)
+	(let ((pos (point4f-add initpos
+				(vector4f-scale rotation
+						(* 30 param)))))
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
-			   (* 2 (+ 1
-				   (* -4 (square (- *cannonball-param* 0.5)))))))
+			   (* (* 2 height)
+			      (+ 1 (* -4 (square (- param 0.5)))))))
 	  (if (check-collision pos)
 	      #f
 	      (begin
 		(append!
 		 render-element-list
 		 (list (lambda ()
+			 (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE color)
 			 (gl-push-matrix)
 			 (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
-			 (glut-solid-cube 0.1)
+			 (glut-solid-cube (* size 0.3))
 			 (gl-pop-matrix)
 			 ))
 		 )
-		(hash-table-put! self 'param (+ *cannonball-param* 0.06))
+		(hash-table-put! self 'param (+ param 0.06))
 		#t)
 	      ))
 	#f
 	)))
 
-; (define *cannonball-param* #f)
-; (define *cannonball-initpos* #f)
-; (define *cannonball-rotation* #f)
+(define (gen-color x)
+  (let ((h (* x 3)))
+    (cond ((> h 2)
+	   (f32vector 0 (- h 2) (- 3 h) 1))
+	  ((> h 1)
+	   (f32vector (- 2 h) 0 (- h 1) 1))
+	  (else				; (> h 0)
+	   (f32vector h (- 1 h) 0 1))
+	   )))
 
-(define (cannonball-create pos rot)
-  (let ((h (make-hash-table)))
-    (hash-table-put! h 'param 0)
-    (hash-table-put! h 'initpos pos)
-    (hash-table-put! h 'rotation rot)
-    (hash-table-put! h 'update (lambda (elems)
-				 (update-cannonball h elems)
-				 ))
+(define cannonball-create
+  (let1 col 0
+    (lambda (pos rot height)
+      (set! col (+ col 0.05))
+      (if (> col 1) (set! col (- col 1)))
+      (let ((h (make-hash-table)))
+	(hash-table-put! h 'color (gen-color col))
+	(hash-table-put! h 'size (+ (random-real) 0.5))
+	(hash-table-put! h 'param 0)
+	(hash-table-put! h 'height height)
+	(hash-table-put! h 'initpos pos)
+	(hash-table-put! h 'rotation rot)
+	(hash-table-put! h 'update (lambda (elems)
+				     (update-cannonball h elems)
+				     ))
 
-    h))
+	h)
+      )))
 
 (define (get-mouse-angle)
   (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 12))))
 
 (define (fire!)
-;   (set! *cannonball-param* 0)
-;   (set! *cannonball-initpos* (point4f-add *position* *rotation*))
-;   (set! *cannonball-rotation* *rotation*)
-
   (let1 quat (get-mouse-angle)
     (append! *elements*
 	     (list (cannonball-create
 		    (point4f-add *position* (vector4f-scale *rotation* (random-real)))
-		    (quatf-transform quat *rotation*)))))
+		    (quatf-transform quat *rotation*)
+		    (- 2 (* *mouse-y* 2))))))
   )
 
 (define *key-active* #f)
@@ -250,7 +264,7 @@
   (when *left-button* (fire!))
   (set! *velocity* ((if *right-button* - +) *velocity* 0.01))
   (if (> *velocity* 0.5)
-      (set! *velocity* 1)
+      (set! *velocity* 0.5)
       (if (< *velocity* 0)
 	  (set! *velocity* 0)))
   (set! *rotation* (quatf-transform (get-mouse-angle) *rotation*))
@@ -284,7 +298,7 @@
 			     (if (> z 100)
 				 #f
 				 (begin
-				   (gl-material GL_FRONT GL_DIFFUSE
+				   (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE
 						(if (odd? (/ (+ x z) 10))
 						    (f32vector 0 1 0 1)
 						    (f32vector 0 0.5 0 1)))
