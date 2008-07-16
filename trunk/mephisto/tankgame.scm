@@ -106,7 +106,7 @@
     (if (< param 1)
 	(let ((pos (point4f-add initpos
 				(vector4f-scale rotation
-						(* 30 param)))))
+						(* 20 param)))))
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
 			   (* (* 2 height)
