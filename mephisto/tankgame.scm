@@ -106,7 +106,7 @@
     (if (< param 1)
 	(let ((pos (point4f-add initpos
 				(vector4f-scale rotation
-						(* 10 param)))))
+						(* 15 param)))))
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
 			   (* (* 2 height)
@@ -120,7 +120,7 @@
 			 (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE color)
 			 (gl-push-matrix)
 			 (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
-			 (glut-solid-cube (* size 0.1))
+			 (glut-solid-cube (* size 0.3))
 			 (gl-pop-matrix)
 			 ))
 		 )
@@ -274,15 +274,15 @@
 	   (list (lambda ()
 		   (gl-matrix-mode GL_PROJECTION)
 		   (gl-load-identity)
-		   (glu-perspective 60 4/3 1 100)
+		   (glu-perspective 60 4/3 0.1 50)
 
 		   (gl-matrix-mode GL_MODELVIEW)
 		   (gl-load-identity)
 		   (glu-look-at (ref *position* 0)
-				(+ (ref *position* 1) 1)
+				(+ (ref *position* 1) 0.3)
 				(ref *position* 2)
 				(+ (ref *position* 0) (ref *rotation* 0))
-				(+ (ref *position* 1) (+ (ref *rotation* 1) 1))
+				(+ (ref *position* 1) (+ (ref *rotation* 1) 0.3))
 				(+ (ref *position* 2) (ref *rotation* 2))
 				0.0 1.0 0.0))))
   #t)
@@ -300,8 +300,8 @@
 				 (begin
 				   (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE
 						(if (odd? (/ (+ x z) 10))
-						    (f32vector 0 1 0 1)
-						    (f32vector 0 0.5 0 1)))
+						    (f32vector 0 1 0 0.5)
+						    (f32vector 0 0.5 0 0.5)))
 				   (gl-normal 0 1 0)
 				   (gl-begin GL_POLYGON)
 				   (gl-vertex x 0 z)
