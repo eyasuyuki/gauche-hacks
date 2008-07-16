@@ -106,7 +106,7 @@
     (if (< param 1)
 	(let ((pos (point4f-add initpos
 				(vector4f-scale rotation
-						(* 20 param)))))
+						(* 10 param)))))
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
 			   (* (* 2 height)
@@ -120,11 +120,11 @@
 			 (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE color)
 			 (gl-push-matrix)
 			 (gl-translate (ref pos 0) (ref pos 1) (ref pos 2))
-			 (glut-solid-cube (* size 0.3))
+			 (glut-solid-cube (* size 0.1))
 			 (gl-pop-matrix)
 			 ))
 		 )
-		(hash-table-put! self 'param (+ param 0.06))
+		(hash-table-put! self 'param (+ param 0.1))
 		#t)
 	      ))
 	#f
