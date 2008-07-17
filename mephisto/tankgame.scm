@@ -168,7 +168,7 @@
 	     (list (cannonball-create
 		    (point4f-add *position* (vector4f-scale *rotation* (random-real)))
 		    (quatf-transform quat *rotation*)
-		    (- 2 (* *mouse-y* 2))))))
+		    (- 1 (* *mouse-y* 1))))))
   )
 
 (define *key-active* #f)
@@ -274,16 +274,16 @@
 	   (list (lambda ()
 		   (gl-matrix-mode GL_PROJECTION)
 		   (gl-load-identity)
-		   (glu-perspective 60 4/3 0.1 50)
+		   (glu-perspective 60 4/3 0.1 20)
 
 		   (gl-matrix-mode GL_MODELVIEW)
 		   (gl-load-identity)
 		   (glu-look-at (ref *position* 0)
 				(+ (ref *position* 1) 0.3)
 				(ref *position* 2)
-				(+ (ref *position* 0) (ref *rotation* 0))
-				(+ (ref *position* 1) (+ (ref *rotation* 1) 0.3))
-				(+ (ref *position* 2) (ref *rotation* 2))
+				(+ (ref *position* 0) (* (ref *rotation* 0) 30))
+				(+ (ref *position* 1) (* (ref *rotation* 1) 30))
+				(+ (ref *position* 2) (* (ref *rotation* 2) 30))
 				0.0 1.0 0.0))))
   #t)
 
