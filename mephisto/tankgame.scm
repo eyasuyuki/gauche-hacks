@@ -31,6 +31,7 @@
   )
 
 (define (clear-screen)
+  (gl-clear-color 0.3 0.3 1 1)
   (gl-clear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
   )
 
@@ -39,8 +40,16 @@
 	 (let ((x (* (random-real) 100))
 	       (y 0)
 	       (z (* (random-real) 100)))
-	   (list n x y z)))
-       (iota 10)))
+	   (list n (point4f x y z))))
+       (iota 50)))
+
+;; http://itpro.nikkeibp.co.jp/article/COLUMN/20061024/251679/?ST=develop&P=2
+(define (move-enemies)
+  (for-each
+   (lambda (e)
+     (map + Separation Alignment Cohesion Avoidance)
+     )
+   enemies))
 
 (define *enemies* (gen-enemies))
 
@@ -50,10 +59,11 @@
 		       (list (lambda ()
 			       (unless (null? e)
 				 (gl-push-matrix)
-				 (let ((x (cadr e))
-				       (y (caddr e))
-				       (z (cadddr e)))
-				   (gl-translate x y z))
+				 (let1 p (cadr e)
+				   (let ((x (point4f-ref p 0))
+					 (y (point4f-ref p 1))
+					 (z (point4f-ref p 2)))
+				     (gl-translate x y z)))
 				 (gl-scale 0.3 0.2 0.5)
 ;; 				 (gl-rotate 90 0 1 0)
 				 (gl-translate 0 0.5 0)
@@ -78,11 +88,12 @@
 (define (square x) (* x x))
 
 (define (collide? enemy cannonball-pos)
-  (let ((ex (cadr enemy))
-	(ez (cadddr enemy))
-	(cx (ref cannonball-pos 0))
-	(cz (ref cannonball-pos 2)))
-    (< (+ (square (- ex cx)) (square (- ez cz))) 10)
+  (let1 ep (cadr enemy)
+    (let ((ex (point4f-ref ep 0))
+	  (ez (point4f-ref ep 2))
+	  (cx (ref cannonball-pos 0))
+	  (cz (ref cannonball-pos 2)))
+      (< (+ (square (- ex cx)) (square (- ez cz))) 10))
     ))
 
 (define (check-collision cannonball-pos)
