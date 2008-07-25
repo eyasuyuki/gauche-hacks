@@ -40,7 +40,10 @@
 	 (let ((x (* (random-real) 100))
 	       (y 0)
 	       (z (* (random-real) 100)))
-	   (list n (point4f x y z))))
+	   (list n
+		 (point4f x y z)	; position
+		 (vector4f 0 0 0)	; velocity
+		 )))
        (iota 50)))
 
 ;; http://itpro.nikkeibp.co.jp/article/COLUMN/20061024/251679/?ST=develop&P=2
@@ -49,7 +52,7 @@
    (lambda (e)
      (map + Separation Alignment Cohesion Avoidance)
      )
-   enemies))
+   *enemies*))
 
 (define *enemies* (gen-enemies))
 
@@ -59,7 +62,9 @@
 		       (list (lambda ()
 			       (unless (null? e)
 				 (gl-push-matrix)
-				 (let1 p (cadr e)
+				 (let ((p (cadr e))
+				       (v (caddr e)))
+				   (point4f-add! p v)
 				   (let ((x (point4f-ref p 0))
 					 (y (point4f-ref p 1))
 					 (z (point4f-ref p 2)))
