@@ -46,17 +46,73 @@
 		 )))
        (iota 50)))
 
+(define enemy-position cadr)
+(define enemy-velocity caddr)
+
 ;; http://itpro.nikkeibp.co.jp/article/COLUMN/20061024/251679/?ST=develop&P=2
 (define (move-enemies)
   (for-each
    (lambda (e)
-     (map + Separation Alignment Cohesion Avoidance)
+     (vector4f-add! (enemy-velocity e)
+		    (vector4f-scale (calculate-separation e *enemies*) 0.1))
+     (vector4f-add! (enemy-velocity e)
+		    (vector4f-scale (calculate-alignment e *enemies*) 0.1))
+     (vector4f-add! (enemy-velocity e)
+		    (vector4f-scale (calculate-cohesion e *enemies*) 0.1))
+;; 	  Alignment Cohesion Avoidance
      )
    *enemies*))
+
+(define (near? e1 e2)
+  (let1 d (point4f-sub (enemy-position e1)
+		       (enemy-position e2))
+    (> 100 (vector4f-dot d d))))
+
+(define (calculate-separation self enemies)
+  (let ((vel (vector4f 0 0 0)))
+    (for-each
+     (lambda (e)
+       (unless (eq? self e)
+	 (when (near? e self)
+	   (vector4f-add! vel (vector4f-normalize
+			       (point4f-sub (enemy-position self)
+					    (enemy-position e)))))))
+     enemies)
+    vel))
+
+(define (calculate-alignment self enemies)
+  (let ((vel (vector4f 0 0 0))
+	(n 0))
+    (for-each
+     (lambda (e)
+       (unless (eq? self e)
+	 (when (near? e self)
+	   (vector4f-add! vel (enemy-velocity e))
+	   (inc! n))))
+     enemies)
+    (if (> n 0)
+	(vector4f-sub (vector4f-scale vel (/. 1 n)) (enemy-velocity self))
+	(vector4f 0 0 0))))
+
+(define (calculate-cohesion self enemies)
+  (let ((vel (f32vector 0 0 0 0))
+	(n 0))
+    (for-each
+     (lambda (e)
+       (unless (eq? self e)
+	 (when (near? e self)
+	   (f32vector-add! vel (point4f->f32vector (enemy-position e)))
+	   (inc! n))))
+     enemies)
+    (if (> n 0)
+	(point4f-sub (f32vector->point4f (f32vector-mul! vel (/. 1 n)))
+		     (enemy-position self))
+	(vector4f 0 0 0))))
 
 (define *enemies* (gen-enemies))
 
 (define (update-enemy render-element-list)
+  (move-enemies)
   (for-each (lambda (e)
 	      (append! render-element-list
 		       (list (lambda ()
@@ -72,7 +128,8 @@
 				 (gl-scale 0.3 0.2 0.5)
 ;; 				 (gl-rotate 90 0 1 0)
 				 (gl-translate 0 0.5 0)
-				 (gl-material GL_FRONT GL_DIFFUSE (f32vector 1 1 1 1))
+				 (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE
+					      (f32vector 0 0 1 1))
 ;; 				 (glut-solid-teapot 4)
 				 (glut-solid-cube 4)
 				 (gl-pop-matrix))))))
@@ -96,8 +153,8 @@
   (let1 ep (cadr enemy)
     (let ((ex (point4f-ref ep 0))
 	  (ez (point4f-ref ep 2))
-	  (cx (ref cannonball-pos 0))
-	  (cz (ref cannonball-pos 2)))
+	  (cx (point4f-ref cannonball-pos 0))
+	  (cz (point4f-ref cannonball-pos 2)))
       (< (+ (square (- ex cx)) (square (- ez cz))) 10))
     ))
 
@@ -222,6 +279,8 @@
 (define (turn-right!)
   (set! *rotation* (* *neg-rot-matrix* *rotation*)))
 
+(define *bird-view* #t)
+
 (define (special-keyboard key x y)
 ;;   #?=GLUT_KEY_LEFT
 ;;   #?=GLUT_KEY_RIGHT
@@ -236,7 +295,8 @@
     ((103 GLUT_KEY_DOWN)
      (set! *position* (point4f-sub *position* (vector4f-scale *rotation* 0.5))))
     ((101 GLUT_KEY_UP)
-     (point4f-add! *position* *rotation*))))
+     (set! *bird-view* #?=(not *bird-view*)))))
+;;      (point4f-add! *position* *rotation*))))
 
 (define *mouse-x* 0)
 (define *mouse-y* 0)
@@ -290,17 +350,21 @@
 	   (list (lambda ()
 		   (gl-matrix-mode GL_PROJECTION)
 		   (gl-load-identity)
-		   (glu-perspective 60 4/3 0.1 20)
+		   (if *bird-view*
+		       (glu-perspective 60 4/3 50 150)
+		       (glu-perspective 60 4/3 0.1 20))
 
 		   (gl-matrix-mode GL_MODELVIEW)
 		   (gl-load-identity)
-		   (glu-look-at (ref *position* 0)
-				(+ (ref *position* 1) 0.3)
-				(ref *position* 2)
-				(+ (ref *position* 0) (* (ref *rotation* 0) 30))
-				(+ (ref *position* 1) (* (ref *rotation* 1) 30))
-				(+ (ref *position* 2) (* (ref *rotation* 2) 30))
-				0.0 1.0 0.0))))
+		   (if *bird-view*
+		       (glu-look-at 50 100 50 50 0 50 0 0 1)
+		       (glu-look-at (ref *position* 0)
+				    (+ (ref *position* 1) 0.3)
+				    (ref *position* 2)
+				    (+ (ref *position* 0) (* (ref *rotation* 0) 30))
+				    (+ (ref *position* 1) (* (ref *rotation* 1) 30))
+				    (+ (ref *position* 2) (* (ref *rotation* 2) 30))
+				    0.0 1.0 0.0)))))
   #t)
 
 (define (update-ground render-element-list)
