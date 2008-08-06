@@ -49,24 +49,29 @@
 (define enemy-position cadr)
 (define enemy-velocity caddr)
 
+;; http://www.red3d.com/cwr/boids/
 ;; http://itpro.nikkeibp.co.jp/article/COLUMN/20061024/251679/?ST=develop&P=2
 (define (move-enemies)
   (for-each
    (lambda (e)
-     (vector4f-add! (enemy-velocity e)
-		    (vector4f-scale (calculate-separation e *enemies*) 0.1))
-     (vector4f-add! (enemy-velocity e)
-		    (vector4f-scale (calculate-alignment e *enemies*) 0.1))
-     (vector4f-add! (enemy-velocity e)
-		    (vector4f-scale (calculate-cohesion e *enemies*) 0.1))
-;; 	  Alignment Cohesion Avoidance
-     )
+     (let1 vel (vector4f 0 0 0)
+       (vector4f-add! vel
+		      (vector4f-scale (calculate-separation e *enemies*) 0.1))
+       (vector4f-add! vel
+		      (vector4f-scale (calculate-alignment e *enemies*) 0.2))
+       (vector4f-add! vel
+		      (vector4f-scale (calculate-cohesion e *enemies*) 0.15))
+       ;; 	  Alignment Cohesion Avoidance
+       (vector4f-add! (enemy-velocity e) vel)
+       ))
    *enemies*))
 
 (define (near? e1 e2)
   (let1 d (point4f-sub (enemy-position e1)
 		       (enemy-position e2))
-    (> 100 (vector4f-dot d d))))
+    (and (> 50 (vector4f-dot d d))
+	 (> (vector4f-dot d (enemy-velocity e1)) -0.9)
+	 )))
 
 (define (calculate-separation self enemies)
   (let ((vel (vector4f 0 0 0)))
@@ -121,6 +126,14 @@
 				 (let ((p (cadr e))
 				       (v (caddr e)))
 				   (point4f-add! p v)
+				   (if (> (point4f-ref p 0) 100)
+				       (point4f-set! p 0 0)
+				       (when (< (point4f-ref p 0) 0)
+					 (point4f-set! p 0 100)))
+				   (if (> (point4f-ref p 2) 100)
+				       (point4f-set! p 2 0)
+				       (when (< (point4f-ref p 2) 0)
+					 (point4f-set! p 2 100)))
 				   (let ((x (point4f-ref p 0))
 					 (y (point4f-ref p 1))
 					 (z (point4f-ref p 2)))
