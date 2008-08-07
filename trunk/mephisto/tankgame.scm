@@ -42,7 +42,9 @@
 	       (z (* (random-real) 100)))
 	   (list n
 		 (point4f x y z)	; position
-		 (vector4f 0 0 0)	; velocity
+		 (vector4f-normalize (vector4f (- (random-real) 0.5)
+					       0
+					       (- (random-real) 0.5))) ; velocity
 		 )))
        (iota 50)))
 
@@ -54,24 +56,28 @@
 (define (move-enemies)
   (for-each
    (lambda (e)
-     (let1 vel (vector4f 0 0 0)
-       (vector4f-add! vel
-		      (vector4f-scale (calculate-separation e *enemies*) 0.1))
-       (vector4f-add! vel
-		      (vector4f-scale (calculate-alignment e *enemies*) 0.2))
-       (vector4f-add! vel
-		      (vector4f-scale (calculate-cohesion e *enemies*) 0.15))
-       ;; 	  Alignment Cohesion Avoidance
-       (vector4f-add! (enemy-velocity e) vel)
-       ))
+     (unless (null? e)
+       (let1 vel (vector4f 0 0 0)
+	 (vector4f-add! vel
+			(vector4f-scale (calculate-separation e *enemies*) 0.5))
+	 (vector4f-add! vel
+			(vector4f-scale (calculate-alignment e *enemies*) 0.1))
+	 (vector4f-add! vel
+			(vector4f-scale (calculate-cohesion e *enemies*) 0.2))
+	 ;; 	  Alignment Cohesion Avoidance
+	 (vector4f-add! (enemy-velocity e) vel)
+	 (vector4f-normalize! (enemy-velocity e))
+	 )))
    *enemies*))
 
 (define (near? e1 e2)
-  (let1 d (point4f-sub (enemy-position e1)
-		       (enemy-position e2))
-    (and (> 50 (vector4f-dot d d))
-	 (> (vector4f-dot d (enemy-velocity e1)) -0.9)
-	 )))
+  (if (or (null? e1) (null? e2))
+      #f
+      (let1 d (point4f-sub (enemy-position e1)
+			   (enemy-position e2))
+	(and (> 100 (vector4f-dot d d))
+	     (> (vector4f-dot d (enemy-velocity e1)) -0.6)
+	     ))))
 
 (define (calculate-separation self enemies)
   (let ((vel (vector4f 0 0 0)))
@@ -359,6 +365,15 @@
   (set! *rotation* (quatf-transform (get-mouse-angle) *rotation*))
 
   (point4f-add! *position* (vector4f-scale *rotation* *velocity*))
+  (if (> (point4f-ref *position* 0) 100)
+      (point4f-set! *position* 0 0)
+      (when (< (point4f-ref *position* 0) 0)
+	(point4f-set! *position* 0 100)))
+  (if (> (point4f-ref *position* 2) 100)
+      (point4f-set! *position* 2 0)
+      (when (< (point4f-ref *position* 2) 0)
+	(point4f-set! *position* 2 100)))
+
   (append! render-element-list
 	   (list (lambda ()
 		   (gl-matrix-mode GL_PROJECTION)
@@ -377,7 +392,22 @@
 				    (+ (ref *position* 0) (* (ref *rotation* 0) 30))
 				    (+ (ref *position* 1) (* (ref *rotation* 1) 30))
 				    (+ (ref *position* 2) (* (ref *rotation* 2) 30))
-				    0.0 1.0 0.0)))))
+				    0.0 1.0 0.0))
+
+		   (when *bird-view*
+		     (gl-push-matrix)
+		     (gl-translate (ref *position* 0)
+				   (ref *position* 1)
+				   (ref *position* 2))
+		     (gl-rotate (* (/ (acos (vector4f-dot *rotation* `#,(vector4f 1 0 0)))
+				    pi)
+				   -180) 0 1 0
+				)
+		     (gl-scale 2 1 1)
+		     (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE
+				  (f32vector 1 0 0 1))
+		     (glut-solid-cube 1)
+		     (gl-pop-matrix)))))
   #t)
 
 (define (update-ground render-element-list)
