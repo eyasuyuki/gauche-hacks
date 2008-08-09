@@ -95,7 +95,7 @@
 
 (define (calculate-avoidance self pos)
   (let1 d (point4f-sub (enemy-position self) pos)
-    (if (< (vector4f-dot d d) 100) d `#,(vector4f 0 0 0)))
+    (if (< (vector4f-dot d d) 300) d `#,(vector4f 0 0 0)))
 )
 
 (define (calculate-alignment self enemies)
