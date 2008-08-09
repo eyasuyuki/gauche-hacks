@@ -64,6 +64,8 @@
 			(vector4f-scale (calculate-alignment e *enemies*) 0.1))
 	 (vector4f-add! vel
 			(vector4f-scale (calculate-cohesion e *enemies*) 0.2))
+	 (vector4f-add! vel
+			(vector4f-scale (calculate-avoidance e *position*) 0.2))
 	 ;; 	  Alignment Cohesion Avoidance
 	 (vector4f-add! (enemy-velocity e) vel)
 	 (vector4f-normalize! (enemy-velocity e))
@@ -90,6 +92,11 @@
 					    (enemy-position e)))))))
      enemies)
     vel))
+
+(define (calculate-avoidance self pos)
+  (let1 d (point4f-sub (enemy-position self) pos)
+    (if (< (vector4f-dot d d) 100) d `#,(vector4f 0 0 0)))
+)
 
 (define (calculate-alignment self enemies)
   (let ((vel (vector4f 0 0 0))
