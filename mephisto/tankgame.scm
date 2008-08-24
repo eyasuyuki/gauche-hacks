@@ -59,13 +59,14 @@
      (unless (null? e)
        (let1 vel (vector4f 0 0 0)
 	 (vector4f-add! vel
-			(vector4f-scale (calculate-separation e *enemies*) 0.5))
+			(vector4f-scale (calculate-separation e *enemies*) 0.2))
 	 (vector4f-add! vel
-			(vector4f-scale (calculate-alignment e *enemies*) 0.1))
+			(vector4f-scale (calculate-alignment e *enemies*) 0.2))
 	 (vector4f-add! vel
-			(vector4f-scale (calculate-cohesion e *enemies*) 0.2))
-	 (vector4f-add! vel
-			(vector4f-scale (calculate-avoidance e *position*) 0.2))
+			(vector4f-scale (calculate-cohesion e *enemies*) 0.1))
+	 (when *need-avoid*
+	   (vector4f-add! vel
+			  (vector4f-scale (calculate-avoidance e *position*) 0.02)))
 	 ;; 	  Alignment Cohesion Avoidance
 	 (vector4f-add! (enemy-velocity e) vel)
 	 (vector4f-normalize! (enemy-velocity e))
@@ -77,8 +78,8 @@
       #f
       (let1 d (point4f-sub (enemy-position e1)
 			   (enemy-position e2))
-	(and (> 100 (vector4f-dot d d))
-	     (> (vector4f-dot d (enemy-velocity e1)) -0.6)
+	(and (> 70 (vector4f-dot d d))
+	     (> (vector4f-dot d (enemy-velocity e1)) -0.7)
 	     ))))
 
 (define (calculate-separation self enemies)
@@ -88,14 +89,15 @@
        (unless (eq? self e)
 	 (when (near? e self)
 	   (vector4f-add! vel (vector4f-normalize
-			       (point4f-sub (enemy-position self)
-					    (enemy-position e)))))))
+			       (let1 d (point4f-sub (enemy-position self)
+						    (enemy-position e))
+				 (vector4f-scale d (/. 1 (vector4f-dot d d)))))))))
      enemies)
     vel))
 
 (define (calculate-avoidance self pos)
   (let1 d (point4f-sub (enemy-position self) pos)
-    (if (< (vector4f-dot d d) 300) d `#,(vector4f 0 0 0)))
+    (if (< (vector4f-dot d d) 200) d `#,(vector4f 0 0 0)))
 )
 
 (define (calculate-alignment self enemies)
@@ -196,6 +198,7 @@
 	      (loop (cdr enems)))))))
 
 (define (update-cannonball self render-element-list)
+  (set! *need-avoid* #f)
   (let ((param (hash-table-get self 'param))
 	(initpos (hash-table-get self 'initpos))
 	(rotation (hash-table-get self 'rotation))
@@ -206,6 +209,7 @@
 	(let ((pos (point4f-add initpos
 				(vector4f-scale rotation
 						(* 15 param)))))
+	  (set! *need-avoid* #t)
 	  (point4f-set! pos 1
 			(+ (ref pos 1)
 			   (* (* 2 height)
@@ -260,6 +264,8 @@
 
 (define (get-mouse-angle)
   (make-quatf #f32(0 1 0) (* (- *mouse-x*) (/ pi 12))))
+
+(define *need-avoid* #f)
 
 (define (fire!)
   (let1 quat (get-mouse-angle)
@@ -406,11 +412,12 @@
 		     (gl-translate (ref *position* 0)
 				   (ref *position* 1)
 				   (ref *position* 2))
-		     (gl-rotate (* (/ (acos (vector4f-dot *rotation* `#,(vector4f 1 0 0)))
-				    pi)
-				   -180) 0 1 0
-				)
-		     (gl-scale 2 1 1)
+		     (let1 ang (* (/ (acos (vector4f-dot *rotation* `#,(vector4f 0 0 1)))
+				     pi)
+				  180)
+		       (gl-rotate (if (> (ref *rotation* 0) 0) ang (- ang)) 0 1 0)
+		       )
+		     (gl-scale 1 1 2)
 		     (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE
 				  (f32vector 1 0 0 1))
 		     (glut-solid-cube 1)
