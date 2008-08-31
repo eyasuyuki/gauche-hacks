@@ -106,25 +106,56 @@
 
 (define board (make-board))
 
-(define b
-  '#(#f #f #f  1  4 #f  6  9 #f
-     #f #f  2 #f #f #f #f #f  4
-     #f  1 #f #f #f  8  5  3  2
+(define problem
+  ;; evil level from http://www.websudoku.com/?level=4
+  ;; not solved yet...
+;;   '#(#f  5 #f  #f  6  7  #f  2 #f
+;;      #f #f #f  #f #f #f  #f #f  9
+;;      #f  1  3  #f #f  4  #f #f  6
 
-      8  6 #f #f #f  1 #f #f #f
-      2  4  1 #f  9 #f  7  8  5
-     #f #f #f  8 #f #f #f  6  9
+;;      #f #f #f  #f  5  1   2 #f #f
+;;      #f #f #f  #f #f #f  #f #f #f
+;;      #f #f  2   4  9 #f  #f #f #f
 
-      6  5  3  2 #f #f #f #f #f
-      1 #f #f #f #f #f  2 #f #f
-     #f  2  8 #f  6  5 #f #f #f
-     ))
+;;       8 #f #f   5 #f #f   3  7 #f
+;;       9 #f #f  #f #f #f  #f #f #f
+;;      #f  4 #f   7  8 #f  #f  9 #f
+;;      )
+
+  ;; easy level
+;;   '#(#f #f #f  1  4 #f  6  9 #f
+;;      #f #f  2 #f #f #f #f #f  4
+;;      #f  1 #f #f #f  8  5  3  2
+
+;;       8  6 #f #f #f  1 #f #f #f
+;;       2  4  1 #f  9 #f  7  8  5
+;;      #f #f #f  8 #f #f #f  6  9
+
+;;       6  5  3  2 #f #f #f #f #f
+;;       1 #f #f #f #f #f  2 #f #f
+;;      #f  2  8 #f  6  5 #f #f #f
+;;      )
+
+  ;; medium level
+  '#(#f  9 #f  #f #f  1  #f #f #f
+     #f #f  1  #f #f  3   9  2  4
+     #f #f  3  #f  9 #f   6  5 #f
+
+      6 #f  9  #f  4 #f  #f #f #f
+     #f #f #f  #f #f #f  #f #f #f
+     #f #f #f  #f  1 #f   5 #f  8
+
+     #f  2  8  #f  6 #f   7 #f #f
+      5  3  7   9 #f #f   1 #f #f
+     #f #f #f   8 #f #f  #f  9 #f
+     )
+  )
 
 (vector-for-each
  (lambda (i x)
    (when x
      (assign-cell-value! board i x))
-   ) b)
+   ) problem)
 
 (vector-for-each
  (lambda (i x)
