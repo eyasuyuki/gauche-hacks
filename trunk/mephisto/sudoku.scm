@@ -46,54 +46,57 @@
      )
    cells))
 
+(define (send-state x)
+  (print `(*TOP* ,x)))
+
 (define (make-board)
   (let ((board (make-vector 81)))
     (vector-map! (lambda (i x)
 		   (let ((cell (make-cell))
 			 (repo (make-wire)))
-;; 		     (let1 cell-value (car cell)
-;; 		       (attach-constraint! (cell-value => repo)
-;; 					   (begin (print #`",i = ,cell-value")
-;; 						  #f)))
+		     (let ((cell-value (car cell))
+			   (prev-value #f))
+		       (attach-constraint!
+			(cell-value => repo)
+			(begin
+			  (if (not prev-value)
+			      (send-state `(identified (@ (index ,|i|)) ,cell-value))
+			      (when (not (eq? prev-value cell-value))
+				(send-state `(conflict (@ (index ,|i|))
+						       (from ,prev-value)
+						       (to ,cell-value)))))
+			  (set! prev-value cell-value)
+			  #f)))
 		     cell)) board)
 
+    ;; set constraint for each rows/columns
     (let loop ((n 0))
       (unless (= n 9)
 	(let ((b (* n 9)))
 	  (connect9! (map (lambda (i) (vector-ref board (+ b i))) (iota 9))))
-	(loop (+ n 1))))
-
-    (let loop ((n 0))
-      (unless (= n 9)
 	(let ((b n))
 	  (connect9! (map (lambda (i) (vector-ref board (+ b (* i 9)))) (iota 9))))
 	(loop (+ n 1))))
 
+    ;; set constraint for each 3x3 boxes
     (let loop ((n 0))
       (unless (= n 3)
 	(let loop2 ((m 0))
 	  (unless (= m 3)
-
 	    (let1 b (+ (* n 27) (* m 3))
-
-	      (connect9! (map (cut vector-ref board <>)
-	       (let loop3 ((i 0) (p '()))
-		(if (= i 3)
-		    p
-		    (loop3 (+ i 1)
-			  (append
-			   (let loop4 ((j 0) (q '()))
-			     (if (= j 3)
-				 q
-				 (loop4 (+ j 1) (cons (+ b (* i 9) j) q))))
-			   p))
-		    ))
-	       ))
-
-	      )
-
-	    (loop2 (+ m 1)))
-	  )
+	      (connect9!
+	       (map (cut vector-ref board <>)
+		    (let loop3 ((i 0) (p '()))
+		      (if (= i 3)
+			  p
+			  (loop3 (+ i 1)
+				 (append
+				  (let loop4 ((j 0) (q '()))
+				    (if (= j 3)
+					q
+					(loop4 (+ j 1) (cons (+ b (* i 9) j) q))))
+				  p)))))))
+	    (loop2 (+ m 1))))
 	(loop (+ n 1))))
 
     board))
@@ -156,6 +159,8 @@
    (when x
      (assign-cell-value! board i x))
    ) problem)
+
+;; (assign-cell-value! board 4 8) ;; make conflict
 
 (vector-for-each
  (lambda (i x)
