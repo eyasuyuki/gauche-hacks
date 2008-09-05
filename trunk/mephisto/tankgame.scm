@@ -154,11 +154,9 @@
 					 (z (point4f-ref p 2)))
 				     (gl-translate x y z)))
 				 (gl-scale 0.3 0.2 0.5)
-;; 				 (gl-rotate 90 0 1 0)
 				 (gl-translate 0 0.5 0)
 				 (gl-material GL_FRONT GL_AMBIENT_AND_DIFFUSE
 					      (f32vector 0 0 1 1))
-;; 				 (glut-solid-teapot 4)
 				 (glut-solid-cube 4)
 				 (gl-pop-matrix))))))
 	    *enemies*)
@@ -371,8 +369,8 @@
 (define (update-self render-element-list)
   (when *left-button* (fire!))
   (set! *velocity* ((if *right-button* - +) *velocity* 0.01))
-  (if (> *velocity* 0.5)
-      (set! *velocity* 0.5)
+  (if (> *velocity* 1)
+      (set! *velocity* 1)
       (if (< *velocity* 0)
 	  (set! *velocity* 0)))
   (set! *rotation* (quatf-transform (get-mouse-angle) *rotation*))
@@ -392,7 +390,7 @@
 		   (gl-matrix-mode GL_PROJECTION)
 		   (gl-load-identity)
 		   (if *bird-view*
-		       (glu-perspective 60 4/3 50 150)
+		       (glu-perspective 60 4/3 50 200)
 		       (glu-perspective 60 4/3 0.1 20))
 
 		   (gl-matrix-mode GL_MODELVIEW)
