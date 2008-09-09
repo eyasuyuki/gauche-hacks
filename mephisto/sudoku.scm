@@ -2,9 +2,12 @@
 
 (use srfi-1)
 (use srfi-43)
+(use sxml.ssax)
+(use sxml.serializer)
+(use util.match)
+(use gauche.net)
 
 (add-load-path "/Users/toru/src/mephisto/mephisto/lib")
-
 (use mephisto.constraint)
 
 (define (make-cell)
@@ -41,21 +44,33 @@
    (lambda (x)
      (for-each
       (lambda (y)
-	(unless (eq? x y) (connect! x (car y)))
-	) cells)
-     )
+	(unless (eq? x y) (connect! x (car y))))
+      cells))
    cells))
 
 (define (send-state x)
-  (print `(*TOP* ,x)))
+  (print (srl:sxml->xml-noindent `(*TOP* ,x))))
 
 (define (make-board)
   (let ((board (make-vector 81)))
     (vector-map! (lambda (i x)
-		   (let ((cell (make-cell))
-			 (repo (make-wire)))
+		   (let ((cell (make-cell)))
+		     (let loop ((nums (cdr cell))
+				(n 1))
+		       (if (null? nums)
+			   'done
+			   (let ((repo (make-wire))
+				 (num (car nums)))
+			     (attach-constraint!
+			      (num => repo)
+			      (begin
+				(send-state `(eliminated (@ (index ,|i|)) ,n))
+				#f))
+			     (loop (cdr nums) (+ n 1))
+			     )))
 		     (let ((cell-value (car cell))
-			   (prev-value #f))
+			   (prev-value #f)
+			   (repo (make-wire)))
 		       (attach-constraint!
 			(cell-value => repo)
 			(begin
@@ -154,11 +169,32 @@
      )
   )
 
-(vector-for-each
- (lambda (i x)
-   (when x
-     (assign-cell-value! board i x))
-   ) problem)
+;; (vector-for-each
+;;  (lambda (i x)
+;;    (when x
+;;      (assign-cell-value! board i x))
+;;    ) problem)
+
+(define (process-input xml)
+  (match xml
+	 (`(*TOP* (assign (@ (index ,i)) ,val))
+	  (assign-cell-value! board (x->number i) (x->number val)))
+	 )
+  )
+
+(call/cc
+ (lambda (end)
+   (let loop ((port (current-input-port)))
+     (let ((input (ssax:xml->sxml port '())))
+       (process-input input)
+       (let skip-whitespece ()
+	 (let1 c (peek-char port)
+	   (if (eof-object? c)
+	       (end 'done)
+	       (when (char-whitespace? c)
+		 (read-char port)
+		 (skip-whitespece)))))
+       (loop port)))))
 
 ;; (assign-cell-value! board 4 8) ;; make conflict
 
