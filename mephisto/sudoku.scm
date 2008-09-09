@@ -48,10 +48,12 @@
       cells))
    cells))
 
-(define (send-state x)
-  (print (srl:sxml->xml-noindent `(*TOP* ,x))))
+(define (send-state x output-port)
+  (with-output-to-port output-port
+    (lambda ()
+      (print (srl:sxml->xml-noindent `(*TOP* ,x))))))
 
-(define (make-board)
+(define (make-board output-port)
   (let ((board (make-vector 81)))
     (vector-map! (lambda (i x)
 		   (let ((cell (make-cell)))
@@ -64,7 +66,8 @@
 			     (attach-constraint!
 			      (num => repo)
 			      (begin
-				(send-state `(eliminated (@ (index ,|i|)) ,n))
+				#;(send-state `(eliminated (@ (index ,|i|)) ,n)
+				output-port)
 				#f))
 			     (loop (cdr nums) (+ n 1))
 			     )))
@@ -75,11 +78,13 @@
 			(cell-value => repo)
 			(begin
 			  (if (not prev-value)
-			      (send-state `(identified (@ (index ,|i|)) ,cell-value))
+			      (send-state `(identified (@ (index ,|i|)) ,cell-value)
+					  output-port)
 			      (when (not (eq? prev-value cell-value))
 				(send-state `(conflict (@ (index ,|i|))
 						       (from ,prev-value)
-						       (to ,cell-value)))))
+						       (to ,cell-value))
+					    output-port)))
 			  (set! prev-value cell-value)
 			  #f)))
 		     cell)) board)
@@ -121,8 +126,6 @@
 
 (define (get-cell-value board n)
   (wire-get-value (car (vector-ref board n))))
-
-(define board (make-board))
 
 (define problem
   ;; evil level from http://www.websudoku.com/?level=4
@@ -169,40 +172,101 @@
      )
   )
 
+#| ;; example input
+<assign index="1">9</assign>
+<assign index="5">1</assign>
+<assign index="11">1</assign>
+<assign index="14">3</assign>
+<assign index="15">9</assign>
+<assign index="16">2</assign>
+<assign index="17">4</assign>
+<assign index="20">3</assign>
+<assign index="22">9</assign>
+<assign index="24">6</assign>
+<assign index="25">5</assign>
+<assign index="27">6</assign>
+<assign index="29">9</assign>
+<assign index="31">4</assign>
+<assign index="49">1</assign>
+<assign index="51">5</assign>
+<assign index="53">8</assign>
+<assign index="55">2</assign>
+<assign index="56">8</assign>
+<assign index="58">6</assign>
+<assign index="60">7</assign>
+<assign index="63">5</assign>
+<assign index="64">3</assign>
+<assign index="65">7</assign>
+<assign index="66">9</assign>
+<assign index="69">1</assign>
+<assign index="75">8</assign>
+<assign index="79">9</assign>
+|#
+
 ;; (vector-for-each
 ;;  (lambda (i x)
 ;;    (when x
-;;      (assign-cell-value! board i x))
+;;      (print (srl:sxml->xml `(*TOP* (assign (@ (index ,i)) ,x)))))
+;; ;;      (assign-cell-value! board i x))
 ;;    ) problem)
 
-(define (process-input xml)
+(define (process-input board xml cont output-port)
   (match xml
 	 (`(*TOP* (assign (@ (index ,i)) ,val))
 	  (assign-cell-value! board (x->number i) (x->number val)))
-	 )
-  )
+	 ('(*TOP* (result))
+	  (send-result board output-port))
+	 ('(*TOP* (done))
+	  (cont 'done))
+	 ))
 
-(call/cc
- (lambda (end)
-   (let loop ((port (current-input-port)))
-     (let ((input (ssax:xml->sxml port '())))
-       (process-input input)
-       (let skip-whitespece ()
-	 (let1 c (peek-char port)
-	   (if (eof-object? c)
-	       (end 'done)
-	       (when (char-whitespace? c)
-		 (read-char port)
-		 (skip-whitespece)))))
-       (loop port)))))
+;; stealed from the tower of hanoi
+(define (hanoi-listen-accept p output oddp)
+  (let* ((listen-sock (make-server-socket 'inet 0)) ; Kernel assign the port
+	 (port (sockaddr-port (socket-address listen-sock))))
+    (format output "ONE ~a ~a ~a\n" p (if oddp 1 0) port)
+    (let ((sock (socket-accept listen-sock)))
+      (socket-close listen-sock)
+      sock)))
+
+(define (sudoku-main board iport oport)
+  (call/cc
+   (lambda (end)
+     (let loop ()
+       (let ((input (ssax:xml->sxml iport '())))
+	 (process-input board input end oport)
+	 (let skip-whitespece ()
+	   (let1 c (peek-char iport)
+	     (if (eof-object? c)
+		 (end 'done)
+		 (when (char-whitespace? c)
+		   (read-char iport)
+		   (skip-whitespece)))))
+	 (loop))))))
+
+(define (print-result board)
+  (vector-for-each
+   (lambda (i x)
+     (display (wire-get-value (car x)))
+     (if (= (modulo i 9) 8)
+	 (newline)
+	 (display " "))
+     )
+   board))
+
+(define (send-result board output-port)
+  (with-output-to-port output-port
+    (lambda ()
+      (print "<result>")
+      (print-result board)
+      (print "</result>"))))
+
+(let ((sock (hanoi-listen-accept 0 (current-output-port) #f)))
+  (let ((input-port (socket-input-port sock))
+	(output-port (socket-output-port sock)))
+    (let ((board (make-board output-port)))
+      (sudoku-main board input-port output-port)
+      (send-result board output-port))
+    ))
 
 ;; (assign-cell-value! board 4 8) ;; make conflict
-
-(vector-for-each
- (lambda (i x)
-   (display (wire-get-value (car x)))
-   (if (= (modulo i 9) 8)
-       (newline)
-       (display " "))
-   )
- board)
