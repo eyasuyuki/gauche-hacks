@@ -49,9 +49,8 @@
    cells))
 
 (define (send-state x output-port)
-  (with-output-to-port output-port
-    (lambda ()
-      (print (srl:sxml->xml-noindent `(*TOP* ,x))))))
+  (display #?=(srl:sxml->xml-noindent `(*TOP* ,x)) output-port)
+  (display "\0" output-port))
 
 (define (make-board output-port)
   (let ((board (make-vector 81)))
@@ -66,8 +65,8 @@
 			     (attach-constraint!
 			      (num => repo)
 			      (begin
-				#;(send-state `(eliminated (@ (index ,|i|)) ,n)
-				output-port)
+				(send-state `(eliminated (@ (index ,|i|)) ,n)
+					    output-port)
 				#f))
 			     (loop (cdr nums) (+ n 1))
 			     )))
@@ -218,6 +217,17 @@
 	  (send-result board output-port))
 	 ('(*TOP* (done))
 	  (cont 'done))
+	 ('(*TOP* (policy-file-request))
+	  ;; <cross-domain-policy>
+	  ;; <allow-access-from domain="*" to-ports="*"/>
+	  ;; </cross-domain-policy>
+	  (begin
+	    (send-state '(cross-domain-policy
+			  (allow-access-from (@ (domain "*")
+						(to-ports "*"))))
+			output-port
+		      )
+	    (cont 'continue)))
 	 ))
 
 ;; stealed from the tower of hanoi
@@ -225,22 +235,24 @@
   (let* ((listen-sock (make-server-socket 'inet 0)) ; Kernel assign the port
 	 (port (sockaddr-port (socket-address listen-sock))))
     (format output "ONE ~a ~a ~a\n" p (if oddp 1 0) port)
-    (let ((sock (socket-accept listen-sock)))
-      (socket-close listen-sock)
-      sock)))
+    (let loop ((final #f))
+      (let ((sock #?=(socket-accept listen-sock)))
+	(when final (socket-close listen-sock))
+	(values #?=sock #?=(if final #f loop))))))
 
 (define (sudoku-main board iport oport)
   (call/cc
    (lambda (end)
      (let loop ()
-       (let ((input (ssax:xml->sxml iport '())))
+       (let ((input #?=(ssax:xml->sxml iport '())))
 	 (process-input board input end oport)
 	 (let skip-whitespece ()
-	   (let1 c (peek-char iport)
-	     (if (eof-object? c)
-		 (end 'done)
-		 (when (char-whitespace? c)
-		   (read-char iport)
+	   (let1 c #?=(peek-char #?=iport)
+	     (if #?=(eof-object? c)
+		 #?=(end 'done)
+		 (when (or #?=(char-whitespace? c)
+			   #?=(char=? c #\null))
+		   #?=(read-char #?=iport)
 		   (skip-whitespece)))))
 	 (loop))))))
 
@@ -255,18 +267,27 @@
    board))
 
 (define (send-result board output-port)
-  (with-output-to-port output-port
-    (lambda ()
-      (print "<result>")
-      (print-result board)
-      (print "</result>"))))
+  (unless (port-closed? output-port)
+    (with-output-to-port output-port
+      (lambda ()
+	(print "<result>")
+	(print-result board)
+	(print "</result>")))))
 
-(let ((sock (hanoi-listen-accept 0 (current-output-port) #f)))
-  (let ((input-port (socket-input-port sock))
-	(output-port (socket-output-port sock)))
-    (let ((board (make-board output-port)))
-      (sudoku-main board input-port output-port)
-      (send-result board output-port))
-    ))
+(let-values (((sock accept)
+	      (hanoi-listen-accept 0 (current-output-port) #f)))
+  (let loop ((sock sock)
+	     (accept accept))
+    (let* ((input-port #?=(socket-input-port sock))
+	      (output-port #?=(socket-output-port sock))
+	      (board (make-board output-port))
+	      )
+      (set! (port-buffering output-port) :none)
+      #?=(port-buffering output-port)
+      (if (eq? #?=(sudoku-main board input-port output-port) 'continue)
+	  (let-values (((sock accept) (accept #t)))
+	    (loop #?=sock #?=accept))
+	  (send-result board (standard-output-port))))
+      ))
 
 ;; (assign-cell-value! board 4 8) ;; make conflict
