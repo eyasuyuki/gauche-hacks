@@ -27,6 +27,10 @@ function initialize (base_mc, dlg_mc, sockbox, port) {
     }
 }
 
+// function placeholder
+var assign_value_by_index;
+var eliminate_by_index;
+
 function create_board (base_mc, sockbox) {
     var dest = [];
     for (var i = 0; i < 81; i ++) {
@@ -46,7 +50,34 @@ function create_board (base_mc, sockbox) {
 
 	dest[i] = mc;
     }
+
+    assign_value_by_index = function (index, value) {
+	trace ("assign_value_by_index: " + [index, value].join (", "));
+	assign_value (dest[index], value);
+    };
+
+    eliminate_by_index = function (index, value) {
+	trace ("eliminate_by_index: " + [index, value].join (", "));
+	eliminate (dest[index], value);
+    };
+
     return dest;
+}
+
+function assign_value (cell_mc, value) {
+    trace ("assign_value: " + [cell_mc, value].join (", "));
+    cell_mc.body_mc.value_text.text = value;
+
+    for (var i = 0; i < 9; i ++) {
+	eliminate (cell_mc, i + 1);
+    }
+}
+
+function eliminate (cell_mc, value) {
+    trace ("eliminate: " + [cell_mc, value,
+			    cell_mc.body_mc,
+			    cell_mc.body_mc["p" + value]].join (", "));
+    cell_mc.body_mc["p" + value]._visible = false;
 }
 
 function mk_onRelease (cell_mc, base_mc, index, sockbox) {
@@ -64,10 +95,6 @@ function mk_onRelease (cell_mc, base_mc, index, sockbox) {
 	    var data = ev.target.selectedItem.data;
 	    trace ("change: data: " + data);
 	    if (data != "") {
-		cell_mc.body_mc.value_text.text = data;
-		for (var i = 0; i < 9; i ++) {
-		    cell_mc.body_mc["p" + (i + 1)]._visible = false;
-		}
 		send_assign (index, ev.target.selectedItem.data, sockbox);
 	    }
 	};
@@ -104,7 +131,21 @@ function connect (host, port, sockbox) {
 
     sock.onXML = function (obj) {
 	trace ("onXML: " + obj);
-	trace (obj.firstChild.nodeName);
+
+	var elem = obj.firstChild;
+
+	var e = elem.firstChild;
+	if (e.nodeName == "eliminated") {
+	    var i = parseInt (e.attributes.index);
+	    var val = parseInt (e.firstChild.nodeValue);
+	    trace ("eliminated: " + [i, val].join (", "))
+	    eliminate_by_index (i, val);
+	} else if (e.nodeName == "identified") {
+	    var i = parseInt (e.attributes.index);
+	    var val = parseInt (e.firstChild.nodeValue);
+	    trace ("identified: " + [i, val].join (", "))
+	    assign_value_by_index (i, val);
+	}
     };
 
     sock.connect (host, port);
