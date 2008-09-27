@@ -3,18 +3,28 @@
 var xml_socket_box = [];
 
 initialize (this.board_mc,
-	    this.connect_dialog_mc, xml_socket_box);
+	    this.connect_dialog_mc, xml_socket_box,
+	    this.port);
 
-function initialize (base_mc, dlg_mc, sockbox) {
-    dlg_mc.connect_btn.onRelease = function () {
-	var port = dlg_mc.port_text.text;
-	var host = dlg_mc.hostname_text.text;
-	dlg_mc._visible = false;
+function initialize (base_mc, dlg_mc, sockbox, port) {
+    var timer_mc = this.createEmptyMovieClip ("timer_mc", 1);
+    timer_mc.onEnterFrame = function () {
+	trace ("timer_mc.onEnterFrame: " + port);
+	if (dlg_mc.port_text.text != null) {
+	    dlg_mc.connect_btn.onRelease = function () {
+		var port = dlg_mc.port_text.text;
+		var host = dlg_mc.hostname_text.text;
+		dlg_mc._visible = false;
 
-	trace ([host, port].join (":"));
-	connect (host, port, sockbox);
-	var board = create_board (base_mc, sockbox);
-    };
+		trace ([host, port].join (":"));
+		connect (host, port, sockbox);
+		var board = create_board (base_mc, sockbox);
+	    };
+	    if (port)
+		dlg_mc.port_text.text = port;
+	    timer_mc.removeMovieClip ();
+	}
+    }
 }
 
 function create_board (base_mc, sockbox) {
@@ -93,8 +103,8 @@ function connect (host, port, sockbox) {
     };
 
     sock.onXML = function (obj) {
-
 	trace ("onXML: " + obj);
+	trace (obj.firstChild.nodeName);
     };
 
     sock.connect (host, port);
