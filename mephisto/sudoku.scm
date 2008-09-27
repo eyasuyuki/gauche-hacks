@@ -49,7 +49,10 @@
    cells))
 
 (define (send-state x output-port)
-  (display #?=(srl:sxml->xml-noindent `(*TOP* ,x)) output-port)
+  (send-message-raw `(*TOP* (sudoku-state ,x)) output-port))
+
+(define (send-message-raw x output-port)
+  (display #?=(srl:sxml->xml-noindent x) output-port)
   (display "\0" output-port))
 
 (define (make-board output-port)
@@ -222,19 +225,18 @@
 	  ;; <allow-access-from domain="*" to-ports="*"/>
 	  ;; </cross-domain-policy>
 	  (begin
-	    (send-state '(cross-domain-policy
-			  (allow-access-from (@ (domain "*")
-						(to-ports "*"))))
-			output-port
-		      )
+	    (send-message-raw '(*TOP* (cross-domain-policy
+				       (allow-access-from (@ (domain "*")
+							     (to-ports "*")))))
+			      output-port)
 	    (cont 'continue)))
 	 ))
 
 ;; stealed from the tower of hanoi
-(define (hanoi-listen-accept p output oddp)
+(define (hanoi-listen-accept output-port)
   (let* ((listen-sock (make-server-socket 'inet 0)) ; Kernel assign the port
 	 (port (sockaddr-port (socket-address listen-sock))))
-    (format output "ONE ~a ~a ~a\n" p (if oddp 1 0) port)
+    (print #`"http://localhost/~toru/mephisto/sudoku_board.swf?port=,port")
     (let loop ((final #f))
       (let ((sock #?=(socket-accept listen-sock)))
 	(when final (socket-close listen-sock))
@@ -275,7 +277,7 @@
 	(print "</result>")))))
 
 (let-values (((sock accept)
-	      (hanoi-listen-accept 0 (current-output-port) #f)))
+	      (hanoi-listen-accept (current-output-port))))
   (let loop ((sock sock)
 	     (accept accept))
     (let* ((input-port #?=(socket-input-port sock))
@@ -287,7 +289,7 @@
       (if (eq? #?=(sudoku-main board input-port output-port) 'continue)
 	  (let-values (((sock accept) (accept #t)))
 	    (loop #?=sock #?=accept))
-	  (send-result board (standard-output-port))))
+	  (print-result board)))
       ))
 
 ;; (assign-cell-value! board 4 8) ;; make conflict
