@@ -55,41 +55,47 @@
   (display #?=(srl:sxml->xml-noindent x) output-port)
   (display "\0" output-port))
 
+(define (make-elim-reporter i cell output-port)
+  (let loop ((nums (cdr cell))
+	     (n 1))
+    (if (null? nums)
+	'done
+	(let ((repo (make-wire))
+	      (num (car nums)))
+	  (attach-constraint!
+	   (num => repo)
+	   (begin
+	     (send-state `(eliminated (@ (index ,|i|)) ,n)
+			 output-port)
+	     #f))
+	  (loop (cdr nums) (+ n 1))
+	  ))))
+
+(define (make-ident-reporter i cell-value output-port)
+  (let ((repo (make-wire))
+	(prev-value #f))
+    (attach-constraint!
+     (cell-value => repo)
+     (begin
+       (if (not prev-value)
+	   (send-state `(identified (@ (index ,|i|)) ,cell-value)
+		       output-port)
+	   (when (not (eq? prev-value cell-value))
+	     (send-state `(conflict (@ (index ,|i|))
+				    (from ,prev-value)
+				    (to ,cell-value))
+			 output-port)))
+       (set! prev-value cell-value)
+       #f))))
+
 (define (make-board output-port)
   (let ((board (make-vector 81)))
     (vector-map! (lambda (i x)
 		   (let ((cell (make-cell)))
-		     (let loop ((nums (cdr cell))
-				(n 1))
-		       (if (null? nums)
-			   'done
-			   (let ((repo (make-wire))
-				 (num (car nums)))
-			     (attach-constraint!
-			      (num => repo)
-			      (begin
-				(send-state `(eliminated (@ (index ,|i|)) ,n)
-					    output-port)
-				#f))
-			     (loop (cdr nums) (+ n 1))
-			     )))
-		     (let ((cell-value (car cell))
-			   (prev-value #f)
-			   (repo (make-wire)))
-		       (attach-constraint!
-			(cell-value => repo)
-			(begin
-			  (if (not prev-value)
-			      (send-state `(identified (@ (index ,|i|)) ,cell-value)
-					  output-port)
-			      (when (not (eq? prev-value cell-value))
-				(send-state `(conflict (@ (index ,|i|))
-						       (from ,prev-value)
-						       (to ,cell-value))
-					    output-port)))
-			  (set! prev-value cell-value)
-			  #f)))
-		     cell)) board)
+		     (make-elim-reporter i cell output-port)
+		     (make-ident-reporter i (car cell) output-port)
+		     cell))
+		 board)
 
     ;; set constraint for each rows/columns
     (let loop ((n 0))
