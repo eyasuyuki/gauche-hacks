@@ -46,7 +46,33 @@
       (lambda (y)
 	(unless (eq? x y) (connect! x (car y))))
       cells))
-   cells))
+   cells)
+  (positive-constraint! cells))
+
+
+(define (positive-constraint! cells)
+  (let loop-t ((t 8))
+    (if (< t 0)
+	'done
+	(begin
+	  (let loop-n ((n 8))
+	    (if (< n 0)
+		'done
+		(let1 const (make-constraint
+			     (val p1 p2 p3 p4 p5 p6 p7 p8)
+			     ((p1 p2 p3 p4 p5 p6 p7 p8 => val) (+ n 1)))
+		  (apply (const 'connect)
+			 (let loop ((cells cells) (head #f) (part '()) (i n))
+			   (if (null? cells)
+			       (cons head part)
+			       (if (zero? i)
+				   (loop (cdr cells) (car (car cells))
+					 part (- i 1))
+				   (loop (cdr cells) head
+					 (cons (ref (car cells) (+ t 1)) part) (- i 1)))))
+			 )
+		  (loop-n (- n 1)))))
+	  (loop-t (- t 1))))))
 
 (define (send-state x output-port)
   (send-message-raw `(*TOP* (sudoku-state ,x)) output-port))
