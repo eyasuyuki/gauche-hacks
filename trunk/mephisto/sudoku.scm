@@ -60,7 +60,7 @@
 		'done
 		(let1 const (make-constraint
 			     (val p1 p2 p3 p4 p5 p6 p7 p8)
-			     ((p1 p2 p3 p4 p5 p6 p7 p8 => val) (+ n 1)))
+			     ((p1 p2 p3 p4 p5 p6 p7 p8 => val) (+ t 1)))
 		  (apply (const 'connect)
 			 (let loop ((cells cells) (head #f) (part '()) (i n))
 			   (if (null? cells)
